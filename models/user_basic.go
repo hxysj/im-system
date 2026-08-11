@@ -1,6 +1,7 @@
 package models
 
 import (
+	"github.com/hxysj/im-system/utils"
 	"gorm.io/gorm"
 )
 
@@ -22,4 +23,10 @@ type UserBasic struct{
 
 func (table *UserBasic)TableName() string{
 	return "user_basic"
+}
+
+func GetUserList() []UserBasic{
+	data := make([]UserBasic, 10)
+	utils.DB.Find(&data)
+	return data
 }
