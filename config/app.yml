@@ -1,0 +1,6 @@
+mysql:
+  dns: root:1qaz@WSX3edc@tcp(127.0.0.1:3306)/im_system?charset=utf8mb4&parseTime=True&loc=Local
+  user: root
+  password: 1qaz@WSX3edc
+  ip: 127.0.0.1
+  port: 3306
