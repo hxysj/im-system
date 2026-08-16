@@ -10,28 +10,6 @@ paths:
             type: string
       tags:
       - 首页
-  /user/createUser:
-    get:
-      parameters:
-      - description: 用户名
-        in: query
-        name: name
-        type: string
-      - description: 密码
-        in: query
-        name: password
-        type: string
-      - description: 确认密码
-        in: query
-        name: repassword
-        type: string
-      responses:
-        "200":
-          description: code","message"}
-          schema:
-            type: string
-      tags:
-      - 用户模块
   /user/deleteUser:
     get:
       parameters:
@@ -68,9 +46,31 @@ paths:
         type: string
       responses:
         "200":
-          description: code","message"}
+          description: code","message","data"}
           schema:
             type: ""
+      tags:
+      - 用户模块
+  /user/register:
+    post:
+      parameters:
+      - description: 用户名
+        in: formData
+        name: name
+        type: string
+      - description: 密码
+        in: formData
+        name: password
+        type: string
+      - description: 确认密码
+        in: formData
+        name: repassword
+        type: string
+      responses:
+        "200":
+          description: code","message"}
+          schema:
+            type: string
       tags:
       - 用户模块
   /user/update:

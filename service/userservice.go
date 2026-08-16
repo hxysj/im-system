@@ -32,16 +32,24 @@ func GetUserList(ctx *gin.Context){
 // CreateUser
 // Summary 新增用户
 // @Tags 用户模块
-// @param name query string false "用户名"
-// @param password query string false "密码"
-// @param repassword query string false "确认密码"
+// @param name formData string false "用户名"
+// @param password formData string false "密码"
+// @param repassword formData string false "确认密码"
 // @Success 200 {string} json{"code","message"}
-// @Router /user/createUser [get]
+// @Router /user/register [Post]
 func CreateUser(ctx *gin.Context){
 	user := models.UserBasic{}
-	user.Name = ctx.Query("name")
-	password := ctx.Query("password")
-	repassword := ctx.Query("repassword")
+	user.Name = ctx.PostForm("name")
+	password := ctx.PostForm("password")
+	repassword := ctx.PostForm("repassword")
+
+	if password == "" || user.Name == ""{
+		ctx.JSON(200,gin.H{
+			"code":-1,
+			"message":"用户名或密码不能为空！",
+		})
+		return
+	}
 
 	salt := fmt.Sprintf("%06d",rand.Int31())
 

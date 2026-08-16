@@ -20,6 +20,10 @@ func main() {
 	if err := utils.DB.AutoMigrate(&models.UserBasic{}); err != nil {
 		log.Fatal(err)
 	}
+	// 自动创建或更新消息表结构,群里表结构，用户关系表结构
+	utils.DB.AutoMigrate(&models.Message{})
+	utils.DB.AutoMigrate(&models.GroupBasic{})
+	utils.DB.AutoMigrate(&models.Contact{})
 
 	r := router.Router()
 	r.Run()

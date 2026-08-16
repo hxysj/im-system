@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
+	driverMysql "github.com/go-sql-driver/mysql"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
@@ -45,9 +47,26 @@ func InitMysql() error {
 		},
 	)
 
+	port,_ := strconv.Atoi(viper.GetString("mysql.port"))
+
+	dbConfig := driverMysql.Config{
+		User: viper.GetString("mysql.user"),
+		Passwd: viper.GetString("mysql.password"),
+		Net: "tcp",
+		Addr: fmt.Sprintf("%s:%d",viper.GetString("mysql.ip"),port),
+		DBName: viper.GetString("mysql.database"),
+		ParseTime: true,
+		Loc:time.Local,
+		Params: map[string]string{
+			"charset":"utf8mb4",
+		},
+	}
+
+	dsn := dbConfig.FormatDSN()
+
 	// fmt.Println("init mysql")
 	var err error
-	DB, err = gorm.Open(mysql.Open(viper.GetString("mysql.dns")), &gorm.Config{Logger: newLogger})
+	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: newLogger})
 	if err != nil {
 		return err
 	}
@@ -75,4 +94,22 @@ func InitRedis(){
 	}else{
 		fmt.Println("【redis】ping redis is success ...",pong)
 	}
+}
+
+var PublishKey = "publish_key"
+
+// 发布消息到redis上
+func Publish(ctx context.Context,channel string,msg string) error {
+	var err error
+	fmt.Println("publish message ...",msg)
+	err = Red.Publish(ctx,channel,msg).Err()
+	return err
+}
+
+// 订阅redis上的消息
+func Subscribe(ctx context.Context,channel string) (string, error){
+	sub := Red.Subscribe(ctx,channel)
+	msg,err := sub.ReceiveMessage(ctx)
+	fmt.Println("Subscribe...",msg.Payload)
+	return msg.Payload,err
 }
