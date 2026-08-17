@@ -1,0 +1,1190 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>讯岛 · IM 工作台</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js"></script>
+    <style>
+      :root {
+        --ink: #16221e;
+        --muted: #71817a;
+        --line: #e5ebe7;
+        --paper: #f7faf8;
+        --white: #ffffff;
+        --mint: #d8f2df;
+        --mint-strong: #3a9c63;
+        --mint-dark: #19633a;
+        --coral: #e47a63;
+        --amber: #d79838;
+        --shadow: 0 24px 70px rgba(35, 65, 47, 0.13);
+        --soft-shadow: 0 10px 30px rgba(35, 65, 47, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        min-height: 100%;
+        margin: 0;
+      }
+      body {
+        background: #edf3ef;
+        color: var(--ink);
+        font-family:
+          "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+        letter-spacing: 0;
+      }
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.52;
+      }
+      [v-cloak] {
+        display: none;
+      }
+
+      .page-shell {
+        min-height: 100vh;
+        padding: 22px;
+      }
+      .auth-layout {
+        display: flex;
+        min-height: calc(100vh - 44px);
+        overflow: hidden;
+        border-radius: 28px;
+        background: var(--white);
+        box-shadow: var(--shadow);
+      }
+      .auth-intro {
+        position: relative;
+        display: flex;
+        width: 54%;
+        min-height: 620px;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 54px 58px;
+        overflow: hidden;
+        background: #163d2b;
+        color: #f4fff5;
+      }
+      .auth-intro::before {
+        position: absolute;
+        right: -150px;
+        bottom: -200px;
+        width: 520px;
+        height: 520px;
+        border: 1px solid rgba(210, 245, 219, 0.24);
+        border-radius: 50%;
+        box-shadow:
+          0 0 0 34px rgba(210, 245, 219, 0.06),
+          0 0 0 70px rgba(210, 245, 219, 0.04);
+        content: "";
+      }
+      .auth-intro::after {
+        position: absolute;
+        top: 23%;
+        right: 20%;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #efb27f;
+        box-shadow:
+          42px 90px 0 #9eddb4,
+          -110px 160px 0 #efb27f;
+        content: "";
+      }
+      .brand-lockup,
+      .intro-copy,
+      .intro-foot {
+        position: relative;
+        z-index: 1;
+      }
+      .brand-lockup {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+      }
+      .brand-mark {
+        display: inline-flex;
+        width: 38px;
+        height: 38px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        background: #bdeec9;
+        color: #173b2a;
+        font-size: 18px;
+      }
+      .eyebrow {
+        margin: 0 0 18px;
+        color: #a4d9b2;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+      }
+      .intro-copy h1 {
+        max-width: 520px;
+        margin: 0;
+        font-family: Georgia, "Songti SC", serif;
+        font-size: 64px;
+        font-weight: 400;
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+      }
+      .intro-copy p {
+        max-width: 430px;
+        margin: 25px 0 0;
+        color: #c4dfc9;
+        font-size: 16px;
+        line-height: 1.9;
+      }
+      .intro-foot {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #a4c8ae;
+        font-size: 13px;
+      }
+      .live-dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #8de2a2;
+        box-shadow: 0 0 0 5px rgba(141, 226, 162, 0.14);
+      }
+      .auth-panel {
+        display: flex;
+        width: 46%;
+        align-items: center;
+        justify-content: center;
+        padding: 48px;
+        background: #fbfdfb;
+      }
+      .auth-card {
+        width: min(100%, 390px);
+      }
+      .auth-card h2 {
+        margin: 0;
+        font-size: 30px;
+        letter-spacing: -0.04em;
+      }
+      .auth-subtitle {
+        margin: 10px 0 29px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.7;
+      }
+      .auth-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 25px;
+        padding: 4px;
+        border-radius: 12px;
+        background: #edf3ef;
+      }
+      .auth-tab {
+        flex: 1;
+        padding: 11px;
+        border: 0;
+        border-radius: 9px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .auth-tab.active {
+        background: var(--white);
+        color: var(--mint-dark);
+        box-shadow: 0 2px 8px rgba(30, 70, 46, 0.08);
+        font-weight: 700;
+      }
+      .field {
+        margin-bottom: 16px;
+      }
+      .field label {
+        display: block;
+        margin-bottom: 8px;
+        color: #52635b;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .field input,
+      .field textarea,
+      .search-input {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        outline: 0;
+        background: var(--white);
+        color: var(--ink);
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s;
+      }
+      .field input {
+        height: 46px;
+        padding: 0 13px;
+      }
+      .field textarea {
+        min-height: 88px;
+        padding: 11px 13px;
+        resize: vertical;
+      }
+      .field input:focus,
+      .field textarea:focus,
+      .search-input:focus {
+        border-color: #8dc79a;
+        box-shadow: 0 0 0 3px rgba(93, 170, 112, 0.12);
+      }
+      .primary-button {
+        width: 100%;
+        height: 48px;
+        margin-top: 8px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--mint-dark);
+        color: #fff;
+        font-weight: 700;
+        transition:
+          transform 0.2s,
+          background 0.2s;
+      }
+      .primary-button:hover {
+        transform: translateY(-1px);
+        background: #0e4d2a;
+      }
+      .form-hint {
+        min-height: 20px;
+        margin: 14px 0 0;
+        color: var(--coral);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .workspace {
+        display: flex;
+        min-height: calc(100vh - 44px);
+        flex-direction: column;
+        overflow: hidden;
+        border-radius: 28px;
+        background: var(--paper);
+        box-shadow: var(--shadow);
+      }
+      .topbar {
+        display: flex;
+        min-height: 78px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 0 31px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.82);
+      }
+      .topbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        color: var(--mint-dark);
+        font-weight: 800;
+      }
+      .topbar-brand .brand-mark {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        background: var(--mint);
+        font-size: 15px;
+      }
+      .topbar-meta {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+      }
+      .connection-state {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .profile-chip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-left: 20px;
+        border-left: 1px solid var(--line);
+      }
+      .avatar {
+        display: inline-flex;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: var(--mint);
+        color: var(--mint-dark);
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .profile-name {
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .profile-role {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .ghost-button,
+      .danger-button {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--white);
+        color: #607169;
+        font-size: 12px;
+      }
+      .ghost-button {
+        padding: 8px 11px;
+      }
+      .ghost-button:hover {
+        border-color: #a3c9ac;
+        color: var(--mint-dark);
+      }
+      .danger-button {
+        padding: 7px 10px;
+        border-color: #f0d4cc;
+        color: #b65641;
+        background: #fffafa;
+      }
+      .danger-button:hover {
+        background: #fff0ec;
+      }
+      .workspace-body {
+        display: flex;
+        min-height: 0;
+        flex: 1;
+      }
+      .sidebar {
+        display: flex;
+        width: 220px;
+        flex: 0 0 220px;
+        flex-direction: column;
+        padding: 28px 18px;
+        border-right: 1px solid var(--line);
+        background: #f4f8f5;
+      }
+      .sidebar-label {
+        margin: 0 12px 12px;
+        color: #98a79f;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .nav-button {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        gap: 11px;
+        padding: 12px;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: #65776d;
+        text-align: left;
+        font-size: 13px;
+      }
+      .nav-button.active {
+        background: var(--mint);
+        color: var(--mint-dark);
+        font-weight: 800;
+      }
+      .nav-icon {
+        display: inline-flex;
+        width: 20px;
+        justify-content: center;
+        color: currentColor;
+        font-size: 15px;
+      }
+      .sidebar-note {
+        margin: auto 10px 0;
+        padding: 16px 14px;
+        border: 1px solid #dce9df;
+        border-radius: 12px;
+        background: #eaf5ed;
+      }
+      .sidebar-note strong {
+        display: block;
+        color: var(--mint-dark);
+        font-size: 12px;
+      }
+      .sidebar-note span {
+        display: block;
+        margin-top: 7px;
+        color: #6e8778;
+        font-size: 11px;
+        line-height: 1.6;
+      }
+      .main-panel {
+        display: flex;
+        min-width: 0;
+        flex: 1;
+        flex-direction: column;
+        padding: 30px 34px 34px;
+        overflow: auto;
+      }
+      .page-heading {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 25px;
+      }
+      .page-heading h2 {
+        margin: 0;
+        font-family: Georgia, "Songti SC", serif;
+        font-size: 30px;
+        font-weight: 400;
+        letter-spacing: -0.04em;
+      }
+      .page-heading p {
+        margin: 7px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .heading-action {
+        display: flex;
+        gap: 9px;
+      }
+      .heading-action .ghost-button {
+        min-width: 90px;
+        height: 37px;
+      }
+      .metric-row {
+        display: flex;
+        gap: 14px;
+        margin-bottom: 22px;
+      }
+      .metric-card {
+        min-width: 0;
+        flex: 1;
+        padding: 17px 18px;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        background: var(--white);
+      }
+      .metric-label {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .metric-value {
+        margin-top: 9px;
+        color: var(--ink);
+        font-family: Georgia, serif;
+        font-size: 28px;
+      }
+      .metric-caption {
+        margin-top: 4px;
+        color: var(--mint-strong);
+        font-size: 11px;
+      }
+      .chat-layout {
+        display: flex;
+        min-height: 490px;
+        flex: 1;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 15px;
+        background: var(--white);
+        box-shadow: var(--soft-shadow);
+      }
+      .contact-pane {
+        display: flex;
+        width: 285px;
+        flex: 0 0 285px;
+        flex-direction: column;
+        border-right: 1px solid var(--line);
+        background: #fcfefd;
+      }
+      .contact-head {
+        padding: 19px 18px 13px;
+      }
+      .contact-head h3 {
+        margin: 0 0 13px;
+        font-size: 14px;
+      }
+      .search-input {
+        height: 36px;
+        padding: 0 11px;
+        font-size: 12px;
+      }
+      .contact-list {
+        min-height: 0;
+        overflow: auto;
+      }
+      .contact-row {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        gap: 10px;
+        padding: 13px 18px;
+        border: 0;
+        border-bottom: 1px solid #f0f4f1;
+        background: transparent;
+        text-align: left;
+      }
+      .contact-row:hover {
+        background: #f6fbf7;
+      }
+      .contact-row.active {
+        background: #edf8ef;
+      }
+      .contact-copy {
+        min-width: 0;
+        flex: 1;
+      }
+      .contact-name {
+        overflow: hidden;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .contact-preview {
+        margin-top: 4px;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .contact-id {
+        color: #9aa9a0;
+        font-size: 10px;
+      }
+      .chat-pane {
+        display: flex;
+        min-width: 0;
+        flex: 1;
+        flex-direction: column;
+        background: #fff;
+      }
+      .chat-head {
+        display: flex;
+        min-height: 72px;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 23px;
+        border-bottom: 1px solid var(--line);
+      }
+      .chat-user {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+      }
+      .chat-user strong {
+        display: block;
+        font-size: 14px;
+      }
+      .chat-user span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .socket-tag {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .socket-tag.connected {
+        color: var(--mint-strong);
+      }
+      .message-stream {
+        min-height: 0;
+        flex: 1;
+        padding: 24px;
+        overflow: auto;
+        background: #fbfdfb;
+      }
+      .empty-state {
+        display: flex;
+        height: 100%;
+        min-height: 250px;
+        align-items: center;
+        justify-content: center;
+        color: #a1afa6;
+        font-size: 12px;
+        text-align: center;
+      }
+      .empty-state strong {
+        display: block;
+        margin-bottom: 6px;
+        color: #708078;
+        font-size: 14px;
+      }
+      .message-item {
+        display: flex;
+        margin-bottom: 15px;
+      }
+      .message-item.mine {
+        justify-content: flex-end;
+      }
+      .message-bubble {
+        max-width: min(72%, 470px);
+        padding: 11px 14px;
+        border-radius: 13px 13px 13px 3px;
+        background: #eef4ef;
+        color: #42534a;
+        font-size: 13px;
+        line-height: 1.65;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .message-item.mine .message-bubble {
+        border-radius: 13px 13px 3px 13px;
+        background: var(--mint-dark);
+        color: #f4fff6;
+      }
+      .message-meta {
+        margin-top: 5px;
+        color: #a1aaa4;
+        font-size: 10px;
+      }
+      .message-item.mine .message-meta {
+        text-align: right;
+      }
+      .composer {
+        display: flex;
+        align-items: flex-end;
+        gap: 12px;
+        padding: 15px 18px;
+        border-top: 1px solid var(--line);
+      }
+      .composer textarea {
+        min-height: 42px;
+        max-height: 110px;
+        flex: 1;
+        padding: 11px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        outline: 0;
+        resize: vertical;
+        font-size: 13px;
+      }
+      .composer textarea:focus {
+        border-color: #8dc79a;
+        box-shadow: 0 0 0 3px rgba(93, 170, 112, 0.12);
+      }
+      .send-button {
+        width: 70px;
+        height: 42px;
+        border: 0;
+        border-radius: 9px;
+        background: var(--mint-dark);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .send-button:hover {
+        background: #0e4d2a;
+      }
+      .members-panel {
+        padding: 3px 0;
+      }
+      .members-table {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--white);
+        overflow: hidden;
+        box-shadow: var(--soft-shadow);
+      }
+      .members-table th,
+      .members-table td {
+        padding: 15px 17px;
+        border-bottom: 1px solid #edf2ee;
+        text-align: left;
+        font-size: 12px;
+      }
+      .members-table th {
+        color: var(--muted);
+        background: #f7faf8;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .members-table tr:last-child td {
+        border-bottom: 0;
+      }
+      .member-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .member-cell strong {
+        font-size: 12px;
+      }
+      .member-cell span {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+      .table-actions {
+        display: flex;
+        gap: 7px;
+      }
+      .table-empty {
+        padding: 50px 20px;
+        color: var(--muted);
+        text-align: center;
+      }
+      .modal-backdrop {
+        position: fixed;
+        z-index: 10;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 22px;
+        background: rgba(18, 45, 30, 0.34);
+      }
+      .modal-card {
+        width: min(100%, 440px);
+        padding: 25px;
+        border-radius: 16px;
+        background: var(--white);
+        box-shadow: var(--shadow);
+      }
+      .modal-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+      .modal-heading h3 {
+        margin: 0;
+        font-family: Georgia, serif;
+        font-size: 23px;
+        font-weight: 400;
+      }
+      .close-button {
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 50%;
+        background: #f1f5f2;
+        color: #708078;
+      }
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 9px;
+        margin-top: 21px;
+      }
+      .modal-actions .primary-button {
+        width: auto;
+        min-width: 88px;
+        height: 40px;
+        margin: 0;
+        padding: 0 16px;
+      }
+      .modal-actions .ghost-button {
+        min-width: 78px;
+      }
+      .toast {
+        position: fixed;
+        z-index: 20;
+        top: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 11px 17px;
+        border-radius: 9px;
+        background: #173e2b;
+        color: #eaffed;
+        box-shadow: var(--soft-shadow);
+        font-size: 12px;
+      }
+      .toast.error {
+        background: #a54f3c;
+      }
+      .fade-enter-active,
+      .fade-leave-active {
+        transition: opacity 0.18s;
+      }
+      .fade-enter-from,
+      .fade-leave-to {
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body>    <div id="app" v-cloak class="page-shell">
+      <transition name="fade">
+        <div v-if="toast.visible" class="toast" :class="{ error: toast.type === 'error' }">{{ toast.message }}</div>
+      </transition>
+      <div id="auth-module"></div>
+      <div id="workspace-module"></div>
+      <div id="member-modal-module"></div>
+    </div>
+    <script>
+      // 先加载业务片段，再挂载 Vue，确保各模块共享同一个应用状态。
+      (async function mountApp() {
+        const modulePaths = [
+          ['/views/user/login.html', '#auth-module'],
+          ['/views/index/workspace.html', '#workspace-module'],
+          ['/views/message/index.html', '#chat-module'],
+          ['/views/user/index.html', '#member-module'],
+          ['/views/user/modal.html', '#member-modal-module']
+        ]
+        const fragments = await Promise.all(modulePaths.map(async ([path]) => {
+          const response = await fetch(path)
+          if (!response.ok) throw new Error('模块加载失败：' + path)
+          return response.text()
+        }))
+        modulePaths.forEach(([, selector], index) => {
+          const target = document.querySelector(selector)
+          if (target) target.outerHTML = fragments[index]
+        })
+const { createApp } = Vue
+      // 统一封装请求地址与表单编码，保持 Go 服务端 PostForm 接收方式不变。
+      const API_ROOT = window.__IM_API_ROOT__ || "http://localhost:8080"
+      const api = axios.create({ baseURL: API_ROOT, timeout: 8000 })
+      api.interceptors.response.use(
+        (response) => response,
+        (error) => Promise.reject(error)
+      )
+
+      createApp({
+        data() {
+          return {
+            authMode: "login",
+            loading: false,
+            authError: "",
+            currentView: "chat",
+            searchText: "",
+            draft: "",
+            authForm: { name: "", password: "", repassword: "" },
+            session: { user: null, token: "" },
+            users: [],
+            selectedUser: null,
+            messages: [],
+            socket: null,
+            socketConnected: false,
+            toast: {
+              visible: false,
+              message: "",
+              type: "success",
+              timer: null
+            },
+            memberModal: { visible: false, editing: false, error: "" },
+            memberForm: {
+              id: "",
+              name: "",
+              password: "",
+              repassword: "",
+              phone: "",
+              email: "",
+              identity: ""
+            }
+          }
+        },
+        computed: {
+          filteredUsers() {
+            const keyword = this.searchText.toLowerCase()
+            return this.users.filter(
+              (item) =>
+                item.ID !== this.session.user.id &&
+                (!keyword ||
+                  String(item.Name || "")
+                    .toLowerCase()
+                    .includes(keyword))
+            )
+          }
+        },
+        mounted() {
+          const cached = sessionStorage.getItem("im-session")
+          if (cached) {
+            try {
+              this.session = JSON.parse(cached)
+              this.refreshUsers()
+            } catch (error) {
+              sessionStorage.removeItem("im-session")
+            }
+          }
+        },
+        methods: {
+          formBody(data) {
+            return new URLSearchParams(
+              Object.entries(data).map(([key, value]) => [
+                key,
+                value == null ? "" : String(value)
+              ])
+            )
+          },
+          initials(name) {
+            return String(name || "?")
+              .trim()
+              .slice(0, 1)
+              .toUpperCase()
+          },
+          lastPreview(id) {
+            const item = this.messages.find(
+              (message) => message.targetId === id || message.fromId === id
+            )
+            return item ? item.content : "开始一段新对话"
+          },
+          showToast(message, type = "success") {
+            clearTimeout(this.toast.timer)
+            this.toast = {
+              visible: true,
+              message,
+              type,
+              timer: setTimeout(() => {
+                this.toast.visible = false
+              }, 2600)
+            }
+          },
+          async submitAuth() {
+            if (
+              this.authMode === "register" &&
+              this.authForm.password !== this.authForm.repassword
+            ) {
+              this.authError = "两次密码不一致"
+              return
+            }
+            this.loading = true
+            this.authError = ""
+            try {
+              const endpoint =
+                this.authMode === "login" ? "/user/login" : "/user/register"
+              const response = await api.post(
+                endpoint,
+                this.formBody(this.authForm)
+              )
+              const body = response.data || {}
+              if (this.authMode === "register") {
+                if (body.code !== 0) throw new Error(body.message || "注册失败")
+                this.authMode = "login"
+                this.authForm.repassword = ""
+                this.showToast("注册成功，请登录")
+                return
+              }
+              const result = body.data && body.data.data ? body.data : body
+              if (result.code !== 0 || !result.data)
+                throw new Error(result.message || body.message || "登录失败")
+              this.session = {
+                user: { id: result.data.id, name: this.authForm.name },
+                token: result.data.token || ""
+              }
+              sessionStorage.setItem("im-session", JSON.stringify(this.session))
+              this.showToast("登录成功")
+              await this.refreshUsers()
+            } catch (error) {
+              this.authError =
+                error.response?.data?.message ||
+                error.message ||
+                "接口请求失败，请检查服务是否启动"
+            } finally {
+              this.loading = false
+            }
+          },
+          async refreshUsers() {
+            this.loading = true
+            try {
+              const response = await api.get("/user/getUserList")
+              const payload = response.data || {}
+              this.users = Array.isArray(payload.message) ? payload.message : []
+              if (
+                !this.selectedUser ||
+                !this.users.some((item) => item.ID === this.selectedUser.ID)
+              )
+                this.selectedUser = this.filteredUsers[0] || null
+              if (this.selectedUser) this.connectSocket()
+            } catch (error) {
+              this.showToast("成员数据加载失败，请确认后端服务已启动", "error")
+            } finally {
+              this.loading = false
+            }
+          },
+          selectUser(person) {
+            this.selectedUser = person
+            this.messages = []
+            this.connectSocket()
+          },
+          connectSocket() {
+            if (!this.selectedUser || !this.session.user) return
+            if (this.socket) this.socket.close()
+            const base = API_ROOT || window.location.origin
+            const wsBase = base.replace(/^http/, "ws")
+            this.socket = new WebSocket(
+              `${wsBase}/msg/sendUserMsg?userId=${encodeURIComponent(this.session.user.id)}`
+            )
+            this.socket.onopen = () => {
+              this.socketConnected = true
+            }
+            this.socket.onclose = () => {
+              this.socketConnected = false
+            }
+            this.socket.onerror = () => {
+              this.socketConnected = false
+            }
+            this.socket.onmessage = (event) => {
+              let content = event.data
+              try {
+                const payload = JSON.parse(event.data)
+                content = payload.Content || payload.content || event.data
+              } catch (error) {}
+              this.messages.push({
+                id: `${Date.now()}-${Math.random()}`,
+                content,
+                mine: false,
+                targetId: this.selectedUser.ID,
+                time: this.timeNow()
+              })
+              this.scrollMessages()
+            }
+          },
+          sendMessage() {
+            if (!this.draft || !this.selectedUser) return
+            const content = this.draft
+            const packet = {
+              type: 1,
+              media: 1,
+              fromId: this.session.user.id,
+              targetId: this.selectedUser.ID,
+              content
+            }
+            if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+              this.showToast("实时通道尚未连接，请稍后重试", "error")
+              return
+            }
+            this.socket.send(JSON.stringify(packet))
+            this.messages.push({
+              id: `${Date.now()}-${Math.random()}`,
+              content,
+              mine: true,
+              targetId: this.selectedUser.ID,
+              time: this.timeNow()
+            })
+            this.draft = ""
+            this.scrollMessages()
+          },
+          timeNow() {
+            return new Date().toLocaleTimeString("zh-CN", {
+              hour: "2-digit",
+              minute: "2-digit"
+            })
+          },
+          scrollMessages() {
+            this.$nextTick(() => {
+              const node = this.$refs.messageStream
+              if (node) node.scrollTop = node.scrollHeight
+            })
+          },
+          logout() {
+            if (this.socket) this.socket.close()
+            sessionStorage.removeItem("im-session")
+            this.session = { user: null, token: "" }
+            this.users = []
+            this.selectedUser = null
+            this.messages = []
+          },
+          openCreateMember() {
+            this.memberModal = { visible: true, editing: false, error: "" }
+            this.memberForm = {
+              id: "",
+              name: "",
+              password: "",
+              repassword: "",
+              phone: "",
+              email: "",
+              identity: ""
+            }
+          },
+          openEditMember(person) {
+            this.memberModal = { visible: true, editing: true, error: "" }
+            this.memberForm = {
+              id: person.ID,
+              name: person.Name || "",
+              password: "",
+              repassword: "",
+              phone: person.Phone || "",
+              email: person.Email || "",
+              identity: person.Identity || ""
+            }
+          },
+          closeMemberModal() {
+            this.memberModal.visible = false
+          },
+          async saveMember() {
+            if (
+              !this.memberModal.editing &&
+              this.memberForm.password !== this.memberForm.repassword
+            ) {
+              this.memberModal.error = "两次密码不一致"
+              return
+            }
+            this.loading = true
+            this.memberModal.error = ""
+            try {
+              const endpoint = this.memberModal.editing
+                ? "/user/update"
+                : "/user/register"
+              const response = await api.post(
+                endpoint,
+                this.formBody(this.memberForm)
+              )
+              const body = response.data || {}
+              if (body.code !== 0) throw new Error(body.message || "保存失败")
+              this.closeMemberModal()
+              this.showToast(
+                this.memberModal.editing ? "成员资料已更新" : "成员已创建"
+              )
+              await this.refreshUsers()
+            } catch (error) {
+              this.memberModal.error =
+                error.response?.data?.message || error.message || "保存失败"
+            } finally {
+              this.loading = false
+            }
+          },
+          async removeMember(person) {
+            if (
+              !window.confirm(`确定删除成员“${person.Name || person.ID}”吗？`)
+            )
+              return
+            try {
+              const response = await api.get("/user/deleteUser", {
+                params: { id: person.ID }
+              })
+              if (response.data?.code !== 0)
+                throw new Error(response.data?.message || "删除失败")
+              this.showToast("成员已删除")
+              await this.refreshUsers()
+            } catch (error) {
+              this.showToast(error.message || "删除失败", "error")
+            }
+          }
+        }
+      }).mount("#app")
+      })().catch((error) => {
+        document.querySelector('#app').innerHTML = `<div class="empty-state"><div><strong>页面模块加载失败</strong><span>${error.message}</span></div></div>`
+      })
+    </script>
+  </body>
+</html>

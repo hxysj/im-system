@@ -1,0 +1,86 @@
+<div
+        v-if="memberModal.visible"
+        class="modal-backdrop"
+        @click.self="closeMemberModal"
+      >
+        <form class="modal-card" @submit.prevent="saveMember">
+          <div class="modal-heading">
+            <div>
+              <h3>{{ memberModal.editing ? '编辑成员' : '新建成员' }}</h3>
+              <p class="auth-subtitle" style="margin-bottom: 0">
+                {{ memberModal.editing ? '更新资料后会直接同步到用户接口。' :
+                '填写基础资料，提交到注册接口。' }}
+              </p>
+            </div>
+            <button
+              class="close-button"
+              type="button"
+              aria-label="关闭"
+              @click="closeMemberModal"
+            >
+              ×
+            </button>
+          </div>
+          <div class="field">
+            <label for="member-name">用户名</label
+            ><input id="member-name" v-model.trim="memberForm.name" required />
+          </div>
+          <div class="field">
+            <label for="member-password"
+              >{{ memberModal.editing ? '新密码（必填）' : '密码' }}</label
+            ><input
+              id="member-password"
+              v-model="memberForm.password"
+              type="password"
+              required
+            />
+          </div>
+          <div v-if="!memberModal.editing" class="field">
+            <label for="member-repassword">确认密码</label
+            ><input
+              id="member-repassword"
+              v-model="memberForm.repassword"
+              type="password"
+              required
+            />
+          </div>
+          <div v-if="memberModal.editing" class="field">
+            <label for="member-phone">手机号</label
+            ><input
+              id="member-phone"
+              v-model.trim="memberForm.phone"
+              placeholder="可选"
+            />
+          </div>
+          <div v-if="memberModal.editing" class="field">
+            <label for="member-email">邮箱</label
+            ><input
+              id="member-email"
+              v-model.trim="memberForm.email"
+              type="email"
+              placeholder="可选"
+            />
+          </div>
+          <div v-if="memberModal.editing" class="field">
+            <label for="member-identity">身份标识</label
+            ><input
+              id="member-identity"
+              v-model.trim="memberForm.identity"
+              placeholder="按接口字段填写"
+            />
+          </div>
+          <p class="form-hint">{{ memberModal.error }}</p>
+          <div class="modal-actions">
+            <button
+              class="ghost-button"
+              type="button"
+              @click="closeMemberModal"
+            >
+              取消</button
+            ><button class="primary-button" type="submit" :disabled="loading">
+              {{ loading ? '提交中…' : '保存' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
