@@ -1,6 +1,20 @@
 info:
   contact: {}
 paths:
+  /contact/getFriendsById:
+    post:
+      parameters:
+      - description: 用户id
+        in: formData
+        name: user_id
+        type: string
+      responses:
+        "200":
+          description: code","message"}
+          schema:
+            type: string
+      tags:
+      - 关系模块
   /index:
     get:
       responses:

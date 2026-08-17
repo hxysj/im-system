@@ -26,6 +26,8 @@ func Router() *gin.Engine{
 	RegisterUserRoutes(r)
 	// 注册消息模块
 	RegisterMessageRoutes(r)
-
+	// 注册关系模块
+	RegisterContactRoutes(r)
+	
 	return r
 }
