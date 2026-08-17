@@ -1,113 +1,99 @@
 <div v-if="currentView === 'chat'" class="chat-layout">
-              <section class="contact-pane">
-                <div class="contact-head">
-                  <h3>
-                    联系人
-                    <span style="color: #9aa9a0; font-weight: 400"
-                      >· {{ filteredUsers.length }}</span
-                    >
-                  </h3>
-                  <input
-                    v-model.trim="searchText"
-                    class="search-input"
-                    type="search"
-                    placeholder="搜索用户名"
-                  />
-                </div>
-                <div class="contact-list">
-                  <button
-                    v-for="person in filteredUsers"
-                    :key="person.ID"
-                    class="contact-row"
-                    :class="{ active: selectedUser && selectedUser.ID === person.ID }"
-                    type="button"
-                    @click="selectUser(person)"
-                  >
-                    <span class="avatar">{{ initials(person.Name) }}</span
-                    ><span class="contact-copy"
-                      ><span class="contact-name"
-                        >{{ person.Name || '未命名用户' }}</span
-                      ><span class="contact-preview"
-                        >{{ lastPreview(person.ID) }}</span
-                      ></span
-                    ><span class="contact-id">#{{ person.ID }}</span>
-                  </button>
-                  <div v-if="!filteredUsers.length" class="empty-state">
-                    <div>
-                      <strong>暂无联系人</strong><span>刷新后再试试</span>
-                    </div>
-                  </div>
-                </div>
-              </section>
-              <section class="chat-pane">
-                <div class="chat-head">
-                  <div v-if="selectedUser" class="chat-user">
-                    <span class="avatar"
-                      >{{ initials(selectedUser.Name) }}</span
-                    >
-                    <div>
-                      <strong>{{ selectedUser.Name || '未命名用户' }}</strong
-                      ><span>用户 ID {{ selectedUser.ID }} · 点对点连接</span>
-                    </div>
-                  </div>
-                  <div v-else class="chat-user">
-                    <span class="avatar">?</span>
-                    <div>
-                      <strong>选择联系人</strong><span>从左侧选择一位成员</span>
-                    </div>
-                  </div>
-                  <span
-                    class="socket-tag"
-                    :class="{ connected: socketConnected }"
-                    >{{ socketConnected ? '● 已连接' : '○ 未连接' }}</span
-                  >
-                </div>
-                <div ref="messageStream" class="message-stream">
-                  <div
-                    v-if="!selectedUser || !messages.length"
-                    class="empty-state"
-                  >
-                    <div>
-                      <strong
-                        >{{ selectedUser ? '开始一段新的对话' : '还没有打开对话'
-                        }}</strong
-                      ><span
-                        >{{ selectedUser ?
-                        '发送第一条消息，它会通过实时通道抵达。' :
-                        '选择联系人后，消息内容会显示在这里。' }}</span
-                      >
-                    </div>
-                  </div>
-                  <div
-                    v-for="item in messages"
-                    v-else
-                    :key="item.id"
-                    class="message-item"
-                    :class="{ mine: item.mine }"
-                  >
-                    <div>
-                      <div class="message-bubble">{{ item.content }}</div>
-                      <div class="message-meta">
-                        {{ item.mine ? '我' : (selectedUser ? selectedUser.Name
-                        : '系统') }} · {{ item.time }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <form class="composer" @submit.prevent="sendMessage">
-                  <textarea
-                    v-model.trim="draft"
-                    :disabled="!selectedUser"
-                    placeholder="写下消息，按 Enter 旁的发送键"
-                    @keydown.enter.exact.prevent="sendMessage"
-                  ></textarea
-                  ><button
-                    class="send-button"
-                    type="submit"
-                    :disabled="!selectedUser || !draft"
-                  >
-                    发送
-                  </button>
-                </form>
-              </section>
-            </div>
+  <section class="contact-pane">
+    <div class="contact-head">
+      <h3>
+        联系人
+        <span style="color: #9aa9a0; font-weight: 400"
+          >· {{ filteredFriends.length }}</span
+        >
+      </h3>
+      <input
+        v-model.trim="searchText"
+        class="search-input"
+        type="search"
+        placeholder="搜索用户名"
+      />
+    </div>
+    <div class="contact-list">
+      <button
+        v-for="person in filteredFriends"
+        :key="person.ID"
+        class="contact-row"
+        :class="{ active: selectedUser && selectedUser.ID === person.ID }"
+        type="button"
+        @click="selectUser(person)"
+      >
+        <span class="avatar">{{ initials(person.Name) }}</span
+        ><span class="contact-copy"
+          ><span class="contact-name">{{ person.Name || '未命名用户' }}</span
+          ><span class="contact-preview"
+            >{{ lastPreview(person.ID) }}</span
+          ></span
+        ><span class="contact-id">#{{ person.ID }}</span>
+      </button>
+      <div v-if="!filteredFriends.length" class="empty-state">
+        <div><strong>暂无联系人</strong><span>刷新后再试试</span></div>
+      </div>
+    </div>
+  </section>
+  <section class="chat-pane">
+    <div class="chat-head">
+      <div v-if="selectedUser" class="chat-user">
+        <span class="avatar">{{ initials(selectedUser.Name) }}</span>
+        <div>
+          <strong>{{ selectedUser.Name || '未命名用户' }}</strong
+          ><span>用户 ID {{ selectedUser.ID }} · 点对点连接</span>
+        </div>
+      </div>
+      <div v-else class="chat-user">
+        <span class="avatar">?</span>
+        <div><strong>选择联系人</strong><span>从左侧选择一位成员</span></div>
+      </div>
+      <span class="socket-tag" :class="{ connected: socketConnected }"
+        >{{ socketConnected ? '● 已连接' : '○ 未连接' }}</span
+      >
+    </div>
+    <div ref="messageStream" class="message-stream">
+      <div v-if="!selectedUser || !messages.length" class="empty-state">
+        <div>
+          <strong
+            >{{ selectedUser ? '开始一段新的对话' : '还没有打开对话' }}</strong
+          ><span
+            >{{ selectedUser ? '发送第一条消息，它会通过实时通道抵达。' :
+            '选择联系人后，消息内容会显示在这里。' }}</span
+          >
+        </div>
+      </div>
+      <div
+        v-for="item in messages"
+        v-else
+        :key="item.id"
+        class="message-item"
+        :class="{ mine: item.mine }"
+      >
+        <div>
+          <div class="message-bubble">{{ item.content }}</div>
+          <div class="message-meta">
+            {{ item.mine ? '我' : (selectedUser ? selectedUser.Name : '系统') }}
+            · {{ item.time }}
+          </div>
+        </div>
+      </div>
+    </div>
+    <form class="composer" @submit.prevent="sendMessage">
+      <textarea
+        v-model.trim="draft"
+        :disabled="!selectedUser"
+        placeholder="写下消息，按 Enter 旁的发送键"
+        @keydown.enter.exact.prevent="sendMessage"
+      ></textarea
+      ><button
+        class="send-button"
+        type="submit"
+        :disabled="!selectedUser || !draft"
+      >
+        发送
+      </button>
+    </form>
+  </section>
+</div>

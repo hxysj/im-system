@@ -8,18 +8,18 @@
     <script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js"></script>
     <style>
       :root {
-        --ink: #16221e;
-        --muted: #71817a;
-        --line: #e5ebe7;
-        --paper: #f7faf8;
+        --ink: #1f2937;
+        --muted: #6b7280;
+        --line: #e5e7eb;
+        --paper: #ffffff;
         --white: #ffffff;
-        --mint: #d8f2df;
-        --mint-strong: #3a9c63;
-        --mint-dark: #19633a;
+        --mint: #e8eefc;
+        --mint-strong: #2563eb;
+        --mint-dark: #1d4ed8;
         --coral: #e47a63;
         --amber: #d79838;
-        --shadow: 0 24px 70px rgba(35, 65, 47, 0.13);
-        --soft-shadow: 0 10px 30px rgba(35, 65, 47, 0.08);
+        --shadow: 0 12px 30px rgba(17, 24, 39, 0.08);
+        --soft-shadow: 0 6px 18px rgba(17, 24, 39, 0.06);
       }
 
       * {
@@ -27,11 +27,12 @@
       }
       html,
       body {
-        min-height: 100%;
+        height: 100%;
         margin: 0;
       }
       body {
-        background: #edf3ef;
+        overflow: hidden;
+        background: #ffffff;
         color: var(--ink);
         font-family:
           "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -54,28 +55,26 @@
       }
 
       .page-shell {
-        min-height: 100vh;
-        padding: 22px;
+        height: 100vh;
+        padding: 0;
       }
       .auth-layout {
         display: flex;
-        min-height: calc(100vh - 44px);
+        height: 100%;
         overflow: hidden;
-        border-radius: 28px;
         background: var(--white);
-        box-shadow: var(--shadow);
       }
       .auth-intro {
         position: relative;
         display: flex;
         width: 54%;
-        min-height: 620px;
+        min-height: 0;
         flex-direction: column;
         justify-content: space-between;
         padding: 54px 58px;
         overflow: hidden;
-        background: #163d2b;
-        color: #f4fff5;
+        background: #111827;
+        color: #ffffff;
       }
       .auth-intro::before {
         position: absolute;
@@ -83,11 +82,11 @@
         bottom: -200px;
         width: 520px;
         height: 520px;
-        border: 1px solid rgba(210, 245, 219, 0.24);
+        border: 1px solid rgba(148, 163, 184, 0.32);
         border-radius: 50%;
         box-shadow:
-          0 0 0 34px rgba(210, 245, 219, 0.06),
-          0 0 0 70px rgba(210, 245, 219, 0.04);
+          0 0 0 34px rgba(148, 163, 184, 0.1),
+          0 0 0 70px rgba(148, 163, 184, 0.06);
         content: "";
       }
       .auth-intro::after {
@@ -99,7 +98,7 @@
         border-radius: 50%;
         background: #efb27f;
         box-shadow:
-          42px 90px 0 #9eddb4,
+          42px 90px 0 #60a5fa,
           -110px 160px 0 #efb27f;
         content: "";
       }
@@ -123,13 +122,13 @@
         align-items: center;
         justify-content: center;
         border-radius: 12px;
-        background: #bdeec9;
-        color: #173b2a;
+        background: #dbeafe;
+        color: #1e3a8a;
         font-size: 18px;
       }
       .eyebrow {
         margin: 0 0 18px;
-        color: #a4d9b2;
+        color: #93c5fd;
         font-size: 12px;
         font-weight: 700;
         letter-spacing: 0.15em;
@@ -142,12 +141,12 @@
         font-size: 64px;
         font-weight: 400;
         line-height: 1.05;
-        letter-spacing: -0.03em;
+        letter-spacing: 0;
       }
       .intro-copy p {
         max-width: 430px;
         margin: 25px 0 0;
-        color: #c4dfc9;
+        color: #cbd5e1;
         font-size: 16px;
         line-height: 1.9;
       }
@@ -155,7 +154,7 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        color: #a4c8ae;
+        color: #94a3b8;
         font-size: 13px;
       }
       .live-dot {
@@ -163,16 +162,18 @@
         width: 7px;
         height: 7px;
         border-radius: 50%;
-        background: #8de2a2;
-        box-shadow: 0 0 0 5px rgba(141, 226, 162, 0.14);
+        background: #2563eb;
+        box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.14);
       }
       .auth-panel {
         display: flex;
         width: 46%;
+        min-height: 0;
         align-items: center;
         justify-content: center;
         padding: 48px;
-        background: #fbfdfb;
+        overflow: auto;
+        background: #ffffff;
       }
       .auth-card {
         width: min(100%, 390px);
@@ -194,7 +195,7 @@
         margin-bottom: 25px;
         padding: 4px;
         border-radius: 12px;
-        background: #edf3ef;
+        background: #f3f4f6;
       }
       .auth-tab {
         flex: 1;
@@ -208,7 +209,7 @@
       .auth-tab.active {
         background: var(--white);
         color: var(--mint-dark);
-        box-shadow: 0 2px 8px rgba(30, 70, 46, 0.08);
+        box-shadow: 0 2px 8px rgba(17, 24, 39, 0.08);
         font-weight: 700;
       }
       .field {
@@ -217,7 +218,7 @@
       .field label {
         display: block;
         margin-bottom: 8px;
-        color: #52635b;
+        color: #4b5563;
         font-size: 12px;
         font-weight: 700;
       }
@@ -246,8 +247,8 @@
       .field input:focus,
       .field textarea:focus,
       .search-input:focus {
-        border-color: #8dc79a;
-        box-shadow: 0 0 0 3px rgba(93, 170, 112, 0.12);
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
       }
       .primary-button {
         width: 100%;
@@ -264,7 +265,7 @@
       }
       .primary-button:hover {
         transform: translateY(-1px);
-        background: #0e4d2a;
+        background: #1e40af;
       }
       .form-hint {
         min-height: 20px;
@@ -276,41 +277,38 @@
 
       .workspace {
         display: flex;
-        min-height: calc(100vh - 44px);
+        height: 100%;
         flex-direction: column;
         overflow: hidden;
-        border-radius: 28px;
         background: var(--paper);
-        box-shadow: var(--shadow);
       }
       .topbar {
         display: flex;
-        min-height: 78px;
+        min-height: 48px;
         align-items: center;
         justify-content: space-between;
-        gap: 24px;
-        padding: 0 31px;
+        gap: 12px;
+        padding: 0 18px;
         border-bottom: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.82);
+        background: #ffffff;
       }
       .topbar-brand {
         display: flex;
         align-items: center;
-        gap: 11px;
+        gap: 8px;
         color: var(--mint-dark);
         font-weight: 800;
       }
       .topbar-brand .brand-mark {
-        width: 32px;
-        height: 32px;
-        border-radius: 10px;
-        background: var(--mint);
-        font-size: 15px;
+        width: 24px;
+        height: 24px;
+        border-radius: 7px;
+        font-size: 13px;
       }
       .topbar-meta {
         display: flex;
         align-items: center;
-        gap: 24px;
+        gap: 10px;
       }
       .connection-state {
         display: flex;
@@ -322,8 +320,8 @@
       .profile-chip {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding-left: 20px;
+        gap: 6px;
+        padding-left: 10px;
         border-left: 1px solid var(--line);
       }
       .avatar {
@@ -344,7 +342,7 @@
         font-weight: 700;
       }
       .profile-role {
-        margin-top: 3px;
+        margin-top: 1px;
         color: var(--muted);
         font-size: 11px;
       }
@@ -359,8 +357,18 @@
       .ghost-button {
         padding: 8px 11px;
       }
+      .topbar .ghost-button,
+      .topbar .danger-button {
+        padding: 5px 8px;
+      }
+      .topbar .avatar {
+        width: 26px;
+        height: 26px;
+        flex-basis: 26px;
+        font-size: 11px;
+      }
       .ghost-button:hover {
-        border-color: #a3c9ac;
+        border-color: #93c5fd;
         color: var(--mint-dark);
       }
       .danger-button {
@@ -376,6 +384,7 @@
         display: flex;
         min-height: 0;
         flex: 1;
+        overflow: hidden;
       }
       .sidebar {
         display: flex;
@@ -384,11 +393,11 @@
         flex-direction: column;
         padding: 28px 18px;
         border-right: 1px solid var(--line);
-        background: #f4f8f5;
+        background: #ffffff;
       }
       .sidebar-label {
         margin: 0 12px 12px;
-        color: #98a79f;
+        color: #9ca3af;
         font-size: 10px;
         font-weight: 800;
         letter-spacing: 0.14em;
@@ -403,7 +412,7 @@
         border: 0;
         border-radius: 10px;
         background: transparent;
-        color: #65776d;
+        color: #4b5563;
         text-align: left;
         font-size: 13px;
       }
@@ -422,9 +431,9 @@
       .sidebar-note {
         margin: auto 10px 0;
         padding: 16px 14px;
-        border: 1px solid #dce9df;
+        border: 1px solid var(--line);
         border-radius: 12px;
-        background: #eaf5ed;
+        background: #ffffff;
       }
       .sidebar-note strong {
         display: block;
@@ -434,17 +443,28 @@
       .sidebar-note span {
         display: block;
         margin-top: 7px;
-        color: #6e8778;
+        color: #6b7280;
         font-size: 11px;
         line-height: 1.6;
       }
       .main-panel {
         display: flex;
         min-width: 0;
+        min-height: 0;
         flex: 1;
         flex-direction: column;
-        padding: 30px 34px 34px;
-        overflow: auto;
+        padding: 24px 28px;
+        overflow: hidden;
+      }
+      .workspace-summary {
+        flex: 0 0 auto;
+      }
+      .workspace-content {
+        display: flex;
+        min-height: 0;
+        flex: 1;
+        flex-direction: column;
+        overflow: hidden;
       }
       .page-heading {
         display: flex;
@@ -458,7 +478,7 @@
         font-family: Georgia, "Songti SC", serif;
         font-size: 30px;
         font-weight: 400;
-        letter-spacing: -0.04em;
+        letter-spacing: 0;
       }
       .page-heading p {
         margin: 7px 0 0;
@@ -476,12 +496,12 @@
       .metric-row {
         display: flex;
         gap: 14px;
-        margin-bottom: 22px;
+        margin-bottom: 14px;
       }
       .metric-card {
         min-width: 0;
         flex: 1;
-        padding: 17px 18px;
+        padding: 11px 14px;
         border: 1px solid var(--line);
         border-radius: 13px;
         background: var(--white);
@@ -491,19 +511,19 @@
         font-size: 11px;
       }
       .metric-value {
-        margin-top: 9px;
+        margin-top: 5px;
         color: var(--ink);
         font-family: Georgia, serif;
-        font-size: 28px;
+        font-size: 24px;
       }
       .metric-caption {
-        margin-top: 4px;
+        margin-top: 2px;
         color: var(--mint-strong);
         font-size: 11px;
       }
       .chat-layout {
         display: flex;
-        min-height: 490px;
+        min-height: 0;
         flex: 1;
         overflow: hidden;
         border: 1px solid var(--line);
@@ -511,13 +531,19 @@
         background: var(--white);
         box-shadow: var(--soft-shadow);
       }
+      .workspace-content > .chat-layout,
+      .workspace-content > .members-panel {
+        min-height: 0;
+        flex: 1;
+      }
       .contact-pane {
         display: flex;
         width: 285px;
+        min-height: 0;
         flex: 0 0 285px;
         flex-direction: column;
         border-right: 1px solid var(--line);
-        background: #fcfefd;
+        background: #ffffff;
       }
       .contact-head {
         padding: 19px 18px 13px;
@@ -533,6 +559,7 @@
       }
       .contact-list {
         min-height: 0;
+        flex: 1;
         overflow: auto;
       }
       .contact-row {
@@ -542,15 +569,15 @@
         gap: 10px;
         padding: 13px 18px;
         border: 0;
-        border-bottom: 1px solid #f0f4f1;
+        border-bottom: 1px solid #f3f4f6;
         background: transparent;
         text-align: left;
       }
       .contact-row:hover {
-        background: #f6fbf7;
+        background: #f8fafc;
       }
       .contact-row.active {
-        background: #edf8ef;
+        background: var(--mint);
       }
       .contact-copy {
         min-width: 0;
@@ -579,6 +606,7 @@
       .chat-pane {
         display: flex;
         min-width: 0;
+        min-height: 0;
         flex: 1;
         flex-direction: column;
         background: #fff;
@@ -586,6 +614,7 @@
       .chat-head {
         display: flex;
         min-height: 72px;
+        flex: 0 0 auto;
         align-items: center;
         justify-content: space-between;
         padding: 16px 23px;
@@ -601,7 +630,9 @@
         font-size: 14px;
       }
       .chat-user span {
-        display: block;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         margin-top: 4px;
         color: var(--muted);
         font-size: 11px;
@@ -618,7 +649,7 @@
         flex: 1;
         padding: 24px;
         overflow: auto;
-        background: #fbfdfb;
+        background: #ffffff;
       }
       .empty-state {
         display: flex;
@@ -626,14 +657,14 @@
         min-height: 250px;
         align-items: center;
         justify-content: center;
-        color: #a1afa6;
+        color: #9ca3af;
         font-size: 12px;
         text-align: center;
       }
       .empty-state strong {
         display: block;
         margin-bottom: 6px;
-        color: #708078;
+        color: #6b7280;
         font-size: 14px;
       }
       .message-item {
@@ -647,8 +678,8 @@
         max-width: min(72%, 470px);
         padding: 11px 14px;
         border-radius: 13px 13px 13px 3px;
-        background: #eef4ef;
-        color: #42534a;
+        background: #f3f4f6;
+        color: #374151;
         font-size: 13px;
         line-height: 1.65;
         white-space: pre-wrap;
@@ -657,11 +688,11 @@
       .message-item.mine .message-bubble {
         border-radius: 13px 13px 3px 13px;
         background: var(--mint-dark);
-        color: #f4fff6;
+        color: #ffffff;
       }
       .message-meta {
         margin-top: 5px;
-        color: #a1aaa4;
+        color: #9ca3af;
         font-size: 10px;
       }
       .message-item.mine .message-meta {
@@ -669,6 +700,7 @@
       }
       .composer {
         display: flex;
+        flex: 0 0 auto;
         align-items: flex-end;
         gap: 12px;
         padding: 15px 18px;
@@ -682,12 +714,12 @@
         border: 1px solid var(--line);
         border-radius: 10px;
         outline: 0;
-        resize: vertical;
+        resize: none;
         font-size: 13px;
       }
       .composer textarea:focus {
-        border-color: #8dc79a;
-        box-shadow: 0 0 0 3px rgba(93, 170, 112, 0.12);
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
       }
       .send-button {
         width: 70px;
@@ -700,10 +732,13 @@
         font-weight: 700;
       }
       .send-button:hover {
-        background: #0e4d2a;
+        background: #1e40af;
       }
       .members-panel {
+        min-height: 0;
+        flex: 1;
         padding: 3px 0;
+        overflow: auto;
       }
       .members-table {
         width: 100%;
@@ -717,13 +752,13 @@
       .members-table th,
       .members-table td {
         padding: 15px 17px;
-        border-bottom: 1px solid #edf2ee;
+        border-bottom: 1px solid #f3f4f6;
         text-align: left;
         font-size: 12px;
       }
       .members-table th {
         color: var(--muted);
-        background: #f7faf8;
+        background: #ffffff;
         font-size: 11px;
         font-weight: 700;
       }
@@ -753,6 +788,29 @@
         color: var(--muted);
         text-align: center;
       }
+      .profile-detail-list {
+        border-top: 1px solid var(--line);
+      }
+      .profile-detail-item {
+        display: flex;
+        min-height: 46px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        border-bottom: 1px solid var(--line);
+        font-size: 13px;
+      }
+      .profile-detail-item span {
+        color: var(--muted);
+      }
+      .profile-detail-item strong {
+        max-width: 64%;
+        overflow: hidden;
+        color: var(--ink);
+        text-align: right;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       .modal-backdrop {
         position: fixed;
         z-index: 10;
@@ -761,7 +819,7 @@
         align-items: center;
         justify-content: center;
         padding: 22px;
-        background: rgba(18, 45, 30, 0.34);
+        background: rgba(17, 24, 39, 0.34);
       }
       .modal-card {
         width: min(100%, 440px);
@@ -788,8 +846,8 @@
         height: 28px;
         border: 0;
         border-radius: 50%;
-        background: #f1f5f2;
-        color: #708078;
+        background: #f3f4f6;
+        color: #6b7280;
       }
       .modal-actions {
         display: flex;
@@ -815,8 +873,8 @@
         transform: translateX(-50%);
         padding: 11px 17px;
         border-radius: 9px;
-        background: #173e2b;
-        color: #eaffed;
+        background: #111827;
+        color: #ffffff;
         box-shadow: var(--soft-shadow);
         font-size: 12px;
       }
@@ -831,11 +889,124 @@
       .fade-leave-to {
         opacity: 0;
       }
+      @media (max-width: 960px) {
+        .auth-intro {
+          display: none;
+        }
+        .auth-panel {
+          width: 100%;
+          padding: 36px;
+        }
+        .topbar {
+          min-height: 54px;
+          flex-wrap: wrap;
+          gap: 12px;
+          padding: 12px 20px;
+        }
+        .topbar-meta {
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+        .workspace-body {
+          flex-direction: column;
+        }
+        .sidebar {
+          width: 100%;
+          min-height: 62px;
+          flex: 0 0 62px;
+          flex-direction: row;
+          align-items: center;
+          padding: 8px 16px;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        .sidebar-label,
+        .sidebar-note {
+          display: none;
+        }
+        .nav-button {
+          width: auto;
+        }
+        .main-panel {
+          padding: 20px;
+        }
+        .chat-layout {
+          flex-direction: column;
+        }
+        .contact-pane {
+          width: 100%;
+          max-height: 210px;
+          flex: 0 0 210px;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+      }
+      @media (max-width: 640px) {
+        .auth-panel {
+          padding: 24px;
+        }
+        .topbar-brand {
+          width: 100%;
+        }
+        .topbar-meta {
+          width: 100%;
+          justify-content: space-between;
+        }
+        .connection-state,
+        .profile-chip {
+          display: none;
+        }
+        .main-panel {
+          padding: 16px;
+        }
+        .page-heading {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+        .metric-row {
+          gap: 8px;
+          margin-bottom: 14px;
+        }
+        .metric-card {
+          padding: 12px;
+        }
+        .metric-value {
+          font-size: 23px;
+        }
+        .chat-head,
+        .composer {
+          padding: 12px;
+        }
+        .message-stream {
+          padding: 16px;
+        }
+        .modal-backdrop {
+          padding: 12px;
+        }
+        .modal-card {
+          max-height: calc(100vh - 24px);
+          padding: 20px;
+          overflow: auto;
+        }
+        .members-table th,
+        .members-table td {
+          padding: 12px;
+        }
+      }
     </style>
   </head>
-  <body>    <div id="app" v-cloak class="page-shell">
+  <body>
+    <div id="app" v-cloak class="page-shell">
       <transition name="fade">
-        <div v-if="toast.visible" class="toast" :class="{ error: toast.type === 'error' }">{{ toast.message }}</div>
+        <div
+          v-if="toast.visible"
+          class="toast"
+          :class="{ error: toast.type === 'error' }"
+        >
+          {{ toast.message }}
+        </div>
       </transition>
       <div id="auth-module"></div>
       <div id="workspace-module"></div>
@@ -843,347 +1014,383 @@
     </div>
     <script>
       // 先加载业务片段，再挂载 Vue，确保各模块共享同一个应用状态。
-      (async function mountApp() {
+      ;(async function mountApp() {
         const modulePaths = [
-          ['/views/user/login.html', '#auth-module'],
-          ['/views/index/workspace.html', '#workspace-module'],
-          ['/views/message/index.html', '#chat-module'],
-          ['/views/user/index.html', '#member-module'],
-          ['/views/user/modal.html', '#member-modal-module']
+          ["/views/user/login.html", "#auth-module"],
+          ["/views/index/workspace.html", "#workspace-module"],
+          ["/views/message/index.html", "#chat-module"],
+          ["/views/user/index.html", "#member-module"],
+          ["/views/user/modal.html", "#member-modal-module"]
         ]
-        const fragments = await Promise.all(modulePaths.map(async ([path]) => {
-          const response = await fetch(path)
-          if (!response.ok) throw new Error('模块加载失败：' + path)
-          return response.text()
-        }))
+        const fragments = await Promise.all(
+          modulePaths.map(async ([path]) => {
+            const response = await fetch(path)
+            if (!response.ok) throw new Error("模块加载失败：" + path)
+            return response.text()
+          })
+        )
         modulePaths.forEach(([, selector], index) => {
           const target = document.querySelector(selector)
           if (target) target.outerHTML = fragments[index]
         })
-const { createApp } = Vue
-      // 统一封装请求地址与表单编码，保持 Go 服务端 PostForm 接收方式不变。
-      const API_ROOT = window.__IM_API_ROOT__ || "http://localhost:8080"
-      const api = axios.create({ baseURL: API_ROOT, timeout: 8000 })
-      api.interceptors.response.use(
-        (response) => response,
-        (error) => Promise.reject(error)
-      )
+        const { createApp } = Vue
+        // 统一封装请求地址与表单编码，保持 Go 服务端 PostForm 接收方式不变。
+        const API_ROOT = window.__IM_API_ROOT__ || "http://localhost:8080"
+        const api = axios.create({ baseURL: API_ROOT, timeout: 8000 })
+        api.interceptors.response.use(
+          response => response,
+          error => Promise.reject(error)
+        )
 
-      createApp({
-        data() {
-          return {
-            authMode: "login",
-            loading: false,
-            authError: "",
-            currentView: "chat",
-            searchText: "",
-            draft: "",
-            authForm: { name: "", password: "", repassword: "" },
-            session: { user: null, token: "" },
-            users: [],
-            selectedUser: null,
-            messages: [],
-            socket: null,
-            socketConnected: false,
-            toast: {
-              visible: false,
-              message: "",
-              type: "success",
-              timer: null
-            },
-            memberModal: { visible: false, editing: false, error: "" },
-            memberForm: {
-              id: "",
-              name: "",
-              password: "",
-              repassword: "",
-              phone: "",
-              email: "",
-              identity: ""
-            }
-          }
-        },
-        computed: {
-          filteredUsers() {
-            const keyword = this.searchText.toLowerCase()
-            return this.users.filter(
-              (item) =>
-                item.ID !== this.session.user.id &&
-                (!keyword ||
-                  String(item.Name || "")
-                    .toLowerCase()
-                    .includes(keyword))
-            )
-          }
-        },
-        mounted() {
-          const cached = sessionStorage.getItem("im-session")
-          if (cached) {
-            try {
-              this.session = JSON.parse(cached)
-              this.refreshUsers()
-            } catch (error) {
-              sessionStorage.removeItem("im-session")
-            }
-          }
-        },
-        methods: {
-          formBody(data) {
-            return new URLSearchParams(
-              Object.entries(data).map(([key, value]) => [
-                key,
-                value == null ? "" : String(value)
-              ])
-            )
-          },
-          initials(name) {
-            return String(name || "?")
-              .trim()
-              .slice(0, 1)
-              .toUpperCase()
-          },
-          lastPreview(id) {
-            const item = this.messages.find(
-              (message) => message.targetId === id || message.fromId === id
-            )
-            return item ? item.content : "开始一段新对话"
-          },
-          showToast(message, type = "success") {
-            clearTimeout(this.toast.timer)
-            this.toast = {
-              visible: true,
-              message,
-              type,
-              timer: setTimeout(() => {
-                this.toast.visible = false
-              }, 2600)
+        createApp({
+          data() {
+            return {
+              authMode: "login",
+              loading: false,
+              authError: "",
+              currentView: "chat",
+              searchText: "",
+              draft: "",
+              authForm: { name: "", password: "", repassword: "" },
+              session: { user: null, token: "" },
+              users: [],
+              friends: [],
+              selectedUser: null,
+              messages: [],
+              socket: null,
+              socketConnected: false,
+              toast: {
+                visible: false,
+                message: "",
+                type: "success",
+                timer: null
+              },
+              memberModal: { visible: false, editing: false, error: "" },
+              friendModal: { visible: false, person: {} },
+              memberForm: {
+                id: "",
+                name: "",
+                password: "",
+                repassword: "",
+                phone: "",
+                email: "",
+                identity: ""
+              }
             }
           },
-          async submitAuth() {
-            if (
-              this.authMode === "register" &&
-              this.authForm.password !== this.authForm.repassword
-            ) {
-              this.authError = "两次密码不一致"
-              return
-            }
-            this.loading = true
-            this.authError = ""
-            try {
-              const endpoint =
-                this.authMode === "login" ? "/user/login" : "/user/register"
-              const response = await api.post(
-                endpoint,
-                this.formBody(this.authForm)
+          computed: {
+            filteredFriends() {
+              const keyword = this.searchText.toLowerCase()
+              return this.friends.filter(
+                item =>
+                  item.ID !== this.session.user.id &&
+                  (!keyword ||
+                    String(item.Name || "")
+                      .toLowerCase()
+                      .includes(keyword))
               )
-              const body = response.data || {}
-              if (this.authMode === "register") {
-                if (body.code !== 0) throw new Error(body.message || "注册失败")
-                this.authMode = "login"
-                this.authForm.repassword = ""
-                this.showToast("注册成功，请登录")
+            }
+          },
+          mounted() {
+            const cached = sessionStorage.getItem("im-session")
+            if (cached) {
+              try {
+                this.session = JSON.parse(cached)
+                this.refreshFriends()
+              } catch (error) {
+                sessionStorage.removeItem("im-session")
+              }
+            }
+          },
+          methods: {
+            formBody(data) {
+              return new URLSearchParams(
+                Object.entries(data).map(([key, value]) => [
+                  key,
+                  value == null ? "" : String(value)
+                ])
+              )
+            },
+            initials(name) {
+              return String(name || "?")
+                .trim()
+                .slice(0, 1)
+                .toUpperCase()
+            },
+            lastPreview(id) {
+              const item = this.messages.find(
+                message => message.targetId === id || message.fromId === id
+              )
+              return item ? item.content : "开始一段新对话"
+            },
+            showToast(message, type = "success") {
+              clearTimeout(this.toast.timer)
+              this.toast = {
+                visible: true,
+                message,
+                type,
+                timer: setTimeout(() => {
+                  this.toast.visible = false
+                }, 2600)
+              }
+            },
+            async submitAuth() {
+              if (
+                this.authMode === "register" &&
+                this.authForm.password !== this.authForm.repassword
+              ) {
+                this.authError = "两次密码不一致"
                 return
               }
-              const result = body.data && body.data.data ? body.data : body
-              if (result.code !== 0 || !result.data)
-                throw new Error(result.message || body.message || "登录失败")
-              this.session = {
-                user: { id: result.data.id, name: this.authForm.name },
-                token: result.data.token || ""
-              }
-              sessionStorage.setItem("im-session", JSON.stringify(this.session))
-              this.showToast("登录成功")
-              await this.refreshUsers()
-            } catch (error) {
-              this.authError =
-                error.response?.data?.message ||
-                error.message ||
-                "接口请求失败，请检查服务是否启动"
-            } finally {
-              this.loading = false
-            }
-          },
-          async refreshUsers() {
-            this.loading = true
-            try {
-              const response = await api.get("/user/getUserList")
-              const payload = response.data || {}
-              this.users = Array.isArray(payload.message) ? payload.message : []
-              if (
-                !this.selectedUser ||
-                !this.users.some((item) => item.ID === this.selectedUser.ID)
-              )
-                this.selectedUser = this.filteredUsers[0] || null
-              if (this.selectedUser) this.connectSocket()
-            } catch (error) {
-              this.showToast("成员数据加载失败，请确认后端服务已启动", "error")
-            } finally {
-              this.loading = false
-            }
-          },
-          selectUser(person) {
-            this.selectedUser = person
-            this.messages = []
-            this.connectSocket()
-          },
-          connectSocket() {
-            if (!this.selectedUser || !this.session.user) return
-            if (this.socket) this.socket.close()
-            const base = API_ROOT || window.location.origin
-            const wsBase = base.replace(/^http/, "ws")
-            this.socket = new WebSocket(
-              `${wsBase}/msg/sendUserMsg?userId=${encodeURIComponent(this.session.user.id)}`
-            )
-            this.socket.onopen = () => {
-              this.socketConnected = true
-            }
-            this.socket.onclose = () => {
-              this.socketConnected = false
-            }
-            this.socket.onerror = () => {
-              this.socketConnected = false
-            }
-            this.socket.onmessage = (event) => {
-              let content = event.data
+              this.loading = true
+              this.authError = ""
               try {
-                const payload = JSON.parse(event.data)
-                content = payload.Content || payload.content || event.data
-              } catch (error) {}
+                const endpoint =
+                  this.authMode === "login" ? "/user/login" : "/user/register"
+                const response = await api.post(
+                  endpoint,
+                  this.formBody(this.authForm)
+                )
+                const body = response.data || {}
+                if (this.authMode === "register") {
+                  if (body.code !== 0)
+                    throw new Error(body.message || "注册失败")
+                  this.authMode = "login"
+                  this.authForm.repassword = ""
+                  this.showToast("注册成功，请登录")
+                  return
+                }
+                const result = body.data && body.data.data ? body.data : body
+                if (result.code !== 0 || !result.data)
+                  throw new Error(result.message || body.message || "登录失败")
+                this.session = {
+                  user: { id: result.data.id, name: this.authForm.name },
+                  token: result.data.token || ""
+                }
+                sessionStorage.setItem(
+                  "im-session",
+                  JSON.stringify(this.session)
+                )
+                this.showToast("登录成功")
+                await this.refreshFriends()
+              } catch (error) {
+                this.authError =
+                  error.response?.data?.message ||
+                  error.message ||
+                  "接口请求失败，请检查服务是否启动"
+              } finally {
+                this.loading = false
+              }
+            },
+            async refreshUsers() {
+              this.loading = true
+              try {
+                const response = await api.get("/user/getUserList")
+                const payload = response.data || {}
+                this.users = Array.isArray(payload.message)
+                  ? payload.message
+                  : []
+              } catch (error) {
+                this.showToast(
+                  "个人资料加载失败，请确认后端服务已启动",
+                  "error"
+                )
+              } finally {
+                this.loading = false
+              }
+            },
+            async refreshFriends() {
+              if (!this.session.user) return
+              this.loading = true
+              try {
+                // 联系人仅使用关系表返回的数据，避免将系统全部用户当作好友。
+                const response = await api.post(
+                  "/contact/getFriendsById",
+                  this.formBody({ user_id: this.session.user.id })
+                )
+                const payload = response.data || {}
+                if (payload.Code !== 0) throw new Error("好友列表加载失败")
+                this.friends = Array.isArray(payload.Rows) ? payload.Rows : []
+                if (
+                  !this.selectedUser ||
+                  !this.friends.some(item => item.ID === this.selectedUser.ID)
+                )
+                  this.selectedUser = this.filteredFriends[0] || null
+                if (this.selectedUser) this.connectSocket()
+              } catch (error) {
+                this.showToast(
+                  "好友列表加载失败，请确认好友关系已建立",
+                  "error"
+                )
+              } finally {
+                this.loading = false
+              }
+            },
+            selectUser(person) {
+              this.selectedUser = person
+              this.messages = []
+              this.connectSocket()
+            },
+            connectSocket() {
+              if (!this.selectedUser || !this.session.user) return
+              if (this.socket) this.socket.close()
+              const base = API_ROOT || window.location.origin
+              const wsBase = base.replace(/^http/, "ws")
+              this.socket = new WebSocket(
+                `${wsBase}/msg/sendUserMsg?userId=${encodeURIComponent(this.session.user.id)}`
+              )
+              this.socket.onopen = () => {
+                this.socketConnected = true
+              }
+              this.socket.onclose = () => {
+                this.socketConnected = false
+              }
+              this.socket.onerror = () => {
+                this.socketConnected = false
+              }
+              this.socket.onmessage = event => {
+                let content = event.data
+                try {
+                  const payload = JSON.parse(event.data)
+                  content = payload.Content || payload.content || event.data
+                } catch (error) {}
+                this.messages.push({
+                  id: `${Date.now()}-${Math.random()}`,
+                  content,
+                  mine: false,
+                  targetId: this.selectedUser.ID,
+                  time: this.timeNow()
+                })
+                this.scrollMessages()
+              }
+            },
+            sendMessage() {
+              if (!this.draft || !this.selectedUser) return
+              const content = this.draft
+              const packet = {
+                type: 2,
+                media: 1,
+                fromId: this.session.user.id,
+                targetId: this.selectedUser.ID,
+                content
+              }
+              if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+                this.showToast("实时通道尚未连接，请稍后重试", "error")
+                return
+              }
+              this.socket.send(JSON.stringify(packet))
               this.messages.push({
                 id: `${Date.now()}-${Math.random()}`,
                 content,
-                mine: false,
+                mine: true,
                 targetId: this.selectedUser.ID,
                 time: this.timeNow()
               })
+              this.draft = ""
               this.scrollMessages()
-            }
-          },
-          sendMessage() {
-            if (!this.draft || !this.selectedUser) return
-            const content = this.draft
-            const packet = {
-              type: 1,
-              media: 1,
-              fromId: this.session.user.id,
-              targetId: this.selectedUser.ID,
-              content
-            }
-            if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-              this.showToast("实时通道尚未连接，请稍后重试", "error")
-              return
-            }
-            this.socket.send(JSON.stringify(packet))
-            this.messages.push({
-              id: `${Date.now()}-${Math.random()}`,
-              content,
-              mine: true,
-              targetId: this.selectedUser.ID,
-              time: this.timeNow()
-            })
-            this.draft = ""
-            this.scrollMessages()
-          },
-          timeNow() {
-            return new Date().toLocaleTimeString("zh-CN", {
-              hour: "2-digit",
-              minute: "2-digit"
-            })
-          },
-          scrollMessages() {
-            this.$nextTick(() => {
-              const node = this.$refs.messageStream
-              if (node) node.scrollTop = node.scrollHeight
-            })
-          },
-          logout() {
-            if (this.socket) this.socket.close()
-            sessionStorage.removeItem("im-session")
-            this.session = { user: null, token: "" }
-            this.users = []
-            this.selectedUser = null
-            this.messages = []
-          },
-          openCreateMember() {
-            this.memberModal = { visible: true, editing: false, error: "" }
-            this.memberForm = {
-              id: "",
-              name: "",
-              password: "",
-              repassword: "",
-              phone: "",
-              email: "",
-              identity: ""
-            }
-          },
-          openEditMember(person) {
-            this.memberModal = { visible: true, editing: true, error: "" }
-            this.memberForm = {
-              id: person.ID,
-              name: person.Name || "",
-              password: "",
-              repassword: "",
-              phone: person.Phone || "",
-              email: person.Email || "",
-              identity: person.Identity || ""
-            }
-          },
-          closeMemberModal() {
-            this.memberModal.visible = false
-          },
-          async saveMember() {
-            if (
-              !this.memberModal.editing &&
-              this.memberForm.password !== this.memberForm.repassword
-            ) {
-              this.memberModal.error = "两次密码不一致"
-              return
-            }
-            this.loading = true
-            this.memberModal.error = ""
-            try {
-              const endpoint = this.memberModal.editing
-                ? "/user/update"
-                : "/user/register"
-              const response = await api.post(
-                endpoint,
-                this.formBody(this.memberForm)
-              )
-              const body = response.data || {}
-              if (body.code !== 0) throw new Error(body.message || "保存失败")
-              this.closeMemberModal()
-              this.showToast(
-                this.memberModal.editing ? "成员资料已更新" : "成员已创建"
-              )
-              await this.refreshUsers()
-            } catch (error) {
-              this.memberModal.error =
-                error.response?.data?.message || error.message || "保存失败"
-            } finally {
-              this.loading = false
-            }
-          },
-          async removeMember(person) {
-            if (
-              !window.confirm(`确定删除成员“${person.Name || person.ID}”吗？`)
-            )
-              return
-            try {
-              const response = await api.get("/user/deleteUser", {
-                params: { id: person.ID }
+            },
+            timeNow() {
+              return new Date().toLocaleTimeString("zh-CN", {
+                hour: "2-digit",
+                minute: "2-digit"
               })
-              if (response.data?.code !== 0)
-                throw new Error(response.data?.message || "删除失败")
-              this.showToast("成员已删除")
+            },
+            scrollMessages() {
+              this.$nextTick(() => {
+                const node = this.$refs.messageStream
+                if (node) node.scrollTop = node.scrollHeight
+              })
+            },
+            logout() {
+              if (this.socket) this.socket.close()
+              sessionStorage.removeItem("im-session")
+              this.session = { user: null, token: "" }
+              this.users = []
+              this.friends = []
+              this.selectedUser = null
+              this.messages = []
+            },
+            async openEditProfile() {
               await this.refreshUsers()
-            } catch (error) {
-              this.showToast(error.message || "删除失败", "error")
+              // 仅从当前登录用户的记录填充资料表单，不接受好友对象作为编辑目标。
+              const person =
+                this.users.find(item => item.ID === this.session.user.id) ||
+                this.session.user
+              this.memberModal = { visible: true, editing: true, error: "" }
+              this.memberForm = {
+                id: this.session.user.id,
+                name: person.Name || "",
+                password: "",
+                repassword: "",
+                phone: person.Phone || "",
+                email: person.Email || "",
+                identity: person.Identity || ""
+              }
+            },
+            closeMemberModal() {
+              this.memberModal.visible = false
+            },
+            viewFriendInfo(person) {
+              // 好友资料单独以只读弹窗展示，避免进入当前用户的编辑流程。
+              this.friendModal = { visible: true, person }
+            },
+            closeFriendInfo() {
+              this.friendModal.visible = false
+            },
+            async saveProfile() {
+              if (String(this.memberForm.id) !== String(this.session.user.id)) {
+                this.memberModal.error = "只能编辑当前登录账号的信息"
+                return
+              }
+              this.loading = true
+              this.memberModal.error = ""
+              try {
+                const response = await api.post(
+                  "/user/update",
+                  this.formBody(this.memberForm)
+                )
+                const body = response.data || {}
+                if (body.code !== 0) throw new Error(body.message || "保存失败")
+                this.closeMemberModal()
+                this.session.user.name = this.memberForm.name
+                sessionStorage.setItem(
+                  "im-session",
+                  JSON.stringify(this.session)
+                )
+                this.showToast("个人资料已更新")
+                await this.refreshFriends()
+              } catch (error) {
+                this.memberModal.error =
+                  error.response?.data?.message || error.message || "保存失败"
+              } finally {
+                this.loading = false
+              }
+            },
+            async deactivateAccount() {
+              if (
+                !window.confirm(
+                  "注销账号后将删除当前用户，且无法恢复。确定继续吗？"
+                )
+              )
+                return
+              try {
+                // 注销仅提交当前会话中的用户 ID，禁止从好友列表传入删除目标。
+                const response = await api.get("/user/deleteUser", {
+                  params: { id: this.session.user.id }
+                })
+                if (response.data?.code !== 0)
+                  throw new Error(response.data?.message || "注销失败")
+                this.logout()
+                this.showToast("账号已注销")
+              } catch (error) {
+                this.showToast(error.message || "注销失败", "error")
+              }
             }
           }
-        }
-      }).mount("#app")
-      })().catch((error) => {
-        document.querySelector('#app').innerHTML = `<div class="empty-state"><div><strong>页面模块加载失败</strong><span>${error.message}</span></div></div>`
+        }).mount("#app")
+      })().catch(error => {
+        document.querySelector("#app").innerHTML =
+          `<div class="empty-state"><div><strong>页面模块加载失败</strong><span>${error.message}</span></div></div>`
       })
     </script>
   </body>
