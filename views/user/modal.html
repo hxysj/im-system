@@ -3,13 +3,12 @@
         class="modal-backdrop"
         @click.self="closeMemberModal"
       >
-        <form class="modal-card" @submit.prevent="saveMember">
+        <form class="modal-card" @submit.prevent="saveProfile">
           <div class="modal-heading">
             <div>
-              <h3>{{ memberModal.editing ? '编辑成员' : '新建成员' }}</h3>
+              <h3>编辑我的资料</h3>
               <p class="auth-subtitle" style="margin-bottom: 0">
-                {{ memberModal.editing ? '更新资料后会直接同步到用户接口。' :
-                '填写基础资料，提交到注册接口。' }}
+                仅可修改当前登录账号的信息。
               </p>
             </div>
             <button
@@ -27,7 +26,7 @@
           </div>
           <div class="field">
             <label for="member-password"
-              >{{ memberModal.editing ? '新密码（必填）' : '密码' }}</label
+              >新密码（必填）</label
             ><input
               id="member-password"
               v-model="memberForm.password"
@@ -35,16 +34,7 @@
               required
             />
           </div>
-          <div v-if="!memberModal.editing" class="field">
-            <label for="member-repassword">确认密码</label
-            ><input
-              id="member-repassword"
-              v-model="memberForm.repassword"
-              type="password"
-              required
-            />
-          </div>
-          <div v-if="memberModal.editing" class="field">
+          <div class="field">
             <label for="member-phone">手机号</label
             ><input
               id="member-phone"
@@ -52,7 +42,7 @@
               placeholder="可选"
             />
           </div>
-          <div v-if="memberModal.editing" class="field">
+          <div class="field">
             <label for="member-email">邮箱</label
             ><input
               id="member-email"
@@ -61,7 +51,7 @@
               placeholder="可选"
             />
           </div>
-          <div v-if="memberModal.editing" class="field">
+          <div class="field">
             <label for="member-identity">身份标识</label
             ><input
               id="member-identity"
@@ -83,4 +73,44 @@
           </div>
         </form>
       </div>
-    </div>
+      <div
+        v-if="friendModal.visible"
+        class="modal-backdrop"
+        @click.self="closeFriendInfo"
+      >
+        <section class="modal-card" aria-label="好友资料">
+          <div class="modal-heading">
+            <div>
+              <h3>好友资料</h3>
+              <p class="auth-subtitle" style="margin-bottom: 0">
+                仅供查看，无法编辑。
+              </p>
+            </div>
+            <button
+              class="close-button"
+              type="button"
+              aria-label="关闭"
+              @click="closeFriendInfo"
+            >
+              ×
+            </button>
+          </div>
+          <div class="profile-detail-list">
+            <div class="profile-detail-item">
+              <span>用户名</span><strong>{{ friendModal.person.Name || '未命名用户' }}</strong>
+            </div>
+            <div class="profile-detail-item">
+              <span>用户 ID</span><strong>{{ friendModal.person.ID }}</strong>
+            </div>
+            <div class="profile-detail-item">
+              <span>手机号</span><strong>{{ friendModal.person.Phone || '未填写' }}</strong>
+            </div>
+            <div class="profile-detail-item">
+              <span>邮箱</span><strong>{{ friendModal.person.Email || '未填写' }}</strong>
+            </div>
+            <div class="profile-detail-item">
+              <span>身份标识</span><strong>{{ friendModal.person.Identity || '未设置' }}</strong>
+            </div>
+          </div>
+        </section>
+      </div>

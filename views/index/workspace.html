@@ -1,94 +1,97 @@
 <section v-else class="workspace">
-        <header class="topbar">
-          <div class="topbar-brand">
-            <span class="brand-mark">讯</span><span>讯岛工作台</span>
+  <header class="topbar">
+    <div class="topbar-brand">
+      <span class="brand-mark">讯</span><span>讯岛工作台</span>
+    </div>
+    <div class="topbar-meta">
+      <div class="connection-state">
+        <span class="live-dot"></span><span>API 服务正常</span>
+      </div>
+      <div class="profile-chip">
+        <span class="avatar">{{ initials(session.user.name) }}</span>
+        <div>
+          <div class="profile-name">{{ session.user.name }}</div>
+          <div class="profile-role">ID · {{ session.user.id }}</div>
+        </div>
+      </div>
+      <button class="ghost-button" type="button" @click="openEditProfile">
+        编辑资料
+      </button>
+      <button class="danger-button" type="button" @click="deactivateAccount">
+        注销账号
+      </button>
+      <button class="ghost-button" type="button" @click="logout">退出</button>
+    </div>
+  </header>
+  <div class="workspace-body">
+    <aside class="sidebar">
+      <p class="sidebar-label">Workspace</p>
+      <button
+        class="nav-button"
+        :class="{ active: currentView === 'chat' }"
+        type="button"
+        @click="currentView = 'chat'"
+      >
+        <span class="nav-icon">◌</span><span>消息</span>
+      </button>
+      <button
+        class="nav-button"
+        :class="{ active: currentView === 'friends' }"
+        type="button"
+        @click="currentView = 'friends'"
+      >
+        <span class="nav-icon">♧</span><span>好友</span>
+      </button>
+      <div class="sidebar-note">
+        <strong>实时通道</strong
+        ><span>连接到服务端后，消息会通过 WebSocket 即时送达。</span>
+      </div>
+    </aside>
+    <main class="main-panel">
+      <section v-if="currentView === 'friends'" class="workspace-summary">
+        <div class="page-heading">
+          <div>
+            <h2>{{ currentView === 'chat' ? '消息中心' : '好友列表' }}</h2>
+            <p>
+              {{ currentView === 'chat' ? '选择一位好友，开始一段私密对话。' :
+              '仅展示已建立好友关系的联系人。' }}
+            </p>
           </div>
-          <div class="topbar-meta">
-            <div class="connection-state">
-              <span class="live-dot"></span><span>API 服务正常</span>
-            </div>
-            <div class="profile-chip">
-              <span class="avatar">{{ initials(session.user.name) }}</span>
-              <div>
-                <div class="profile-name">{{ session.user.name }}</div>
-                <div class="profile-role">ID · {{ session.user.id }}</div>
-              </div>
-            </div>
-            <button class="ghost-button" type="button" @click="logout">
-              退出
+          <div class="heading-action">
+            <button
+              class="ghost-button"
+              type="button"
+              @click="refreshFriends"
+              :disabled="loading"
+            >
+              ↻ 刷新数据
             </button>
           </div>
-        </header>
-        <div class="workspace-body">
-          <aside class="sidebar">
-            <p class="sidebar-label">Workspace</p>
-            <button
-              class="nav-button"
-              :class="{ active: currentView === 'chat' }"
-              type="button"
-              @click="currentView = 'chat'"
-            >
-              <span class="nav-icon">◌</span><span>消息</span>
-            </button>
-            <button
-              class="nav-button"
-              :class="{ active: currentView === 'members' }"
-              type="button"
-              @click="currentView = 'members'"
-            >
-              <span class="nav-icon">♧</span><span>成员</span>
-            </button>
-            <div class="sidebar-note">
-              <strong>实时通道</strong
-              ><span>连接到服务端后，消息会通过 WebSocket 即时送达。</span>
+        </div>
+        <div class="metric-row">
+          <div class="metric-card">
+            <div class="metric-label">好友数量</div>
+            <div class="metric-value">{{ friends.length }}</div>
+            <div class="metric-caption">已建立好友关系</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">在线状态</div>
+            <div class="metric-value">
+              {{ socketConnected ? '在线' : '待连接' }}
             </div>
-          </aside>
-          <main class="main-panel">
-            <div class="page-heading">
-              <div>
-                <h2>{{ currentView === 'chat' ? '消息中心' : '成员目录' }}</h2>
-                <p>
-                  {{ currentView === 'chat' ? '选择一位成员，开始一段私密对话。'
-                  : '查看、维护当前系统中的用户信息。' }}
-                </p>
-              </div>
-              <div class="heading-action">
-                <button
-                  class="ghost-button"
-                  type="button"
-                  @click="refreshUsers"
-                  :disabled="loading"
-                >
-                  ↻ 刷新数据</button
-                ><button
-                  v-if="currentView === 'members'"
-                  class="ghost-button"
-                  type="button"
-                  @click="openCreateMember"
-                >
-                  ＋ 新成员
-                </button>
-              </div>
-            </div>
-            <div class="metric-row">
-              <div class="metric-card">
-                <div class="metric-label">成员总数</div>
-                <div class="metric-value">{{ users.length }}</div>
-                <div class="metric-caption">当前可见成员</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">在线状态</div>
-                <div class="metric-value">
-                  {{ socketConnected ? '在线' : '待连接' }}
-                </div>
-                <div class="metric-caption">WebSocket 通道</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">本次会话</div>
-                <div class="metric-value">{{ messages.length }}</div>
-                <div class="metric-caption">已收发消息</div>
-              </div>
-            </div>            <div id="chat-module"></div>
-            <div id="member-module"></div>          </main>
+            <div class="metric-caption">WebSocket 通道</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">本次会话</div>
+            <div class="metric-value">{{ messages.length }}</div>
+            <div class="metric-caption">已收发消息</div>
+          </div>
         </div>
       </section>
+      <section class="workspace-content">
+        <div id="chat-module"></div>
+        <div id="member-module"></div>
+      </section>
+    </main>
+  </div>
+</section>

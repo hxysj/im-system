@@ -2,14 +2,14 @@
               <table class="members-table">
                 <thead>
                   <tr>
-                    <th>成员</th>
+                    <th>好友</th>
                     <th>联系方式</th>
                     <th>身份标识</th>
-                    <th>操作</th>
+                    <th>资料</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="person in filteredUsers" :key="person.ID">
+                  <tr v-for="person in filteredFriends" :key="person.ID">
                     <td>
                       <div class="member-cell">
                         <span class="avatar">{{ initials(person.Name) }}</span>
@@ -27,25 +27,17 @@
                     </td>
                     <td>{{ person.Identity || '未设置' }}</td>
                     <td>
-                      <div class="table-actions">
-                        <button
-                          class="ghost-button"
-                          type="button"
-                          @click="openEditMember(person)"
-                        >
-                          编辑</button
-                        ><button
-                          class="danger-button"
-                          type="button"
-                          @click="removeMember(person)"
-                        >
-                          删除
-                        </button>
-                      </div>
+                      <button
+                        class="ghost-button"
+                        type="button"
+                        @click="viewFriendInfo(person)"
+                      >
+                        查看资料
+                      </button>
                     </td>
                   </tr>
-                  <tr v-if="!filteredUsers.length">
-                    <td colspan="4" class="table-empty">暂无成员数据</td>
+                  <tr v-if="!filteredFriends.length">
+                    <td colspan="4" class="table-empty">暂无好友数据</td>
                   </tr>
                 </tbody>
               </table>
