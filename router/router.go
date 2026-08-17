@@ -17,7 +17,7 @@ func Router() *gin.Engine{
 	
 	// 静态资源
 	r.Static("/asset","asset/")
-	// r.LoadHTMLGlob("views/**/*")
+	r.Static("/views", "views/")
 
 	// 首页模块
 	r.GET("/index",service.GetIndex)
