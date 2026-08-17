@@ -15,6 +15,29 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/contact/getFriendsById": {
+            "post": {
+                "tags": [
+                    "关系模块"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "用户id",
+                        "name": "user_id",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "code\",\"message\"}",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/index": {
             "get": {
                 "tags": [
