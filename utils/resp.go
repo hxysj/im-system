@@ -7,11 +7,10 @@ import (
 )
 
 type H struct {
-	Code  int
-	Msg   string
-	Data  interface{}
-	Rows  interface{}
-	Total interface{}
+	Code  int  `json:"code"`
+	Msg   string `json:"msg"`
+	Data  interface{} `json:"data"`
+	Total interface{} `json:"total"`
 }
 
 
@@ -36,7 +35,7 @@ func RespList(w http.ResponseWriter,code int, data interface{},total interface{}
 	w.WriteHeader(http.StatusOK)
 	h := H{
 		Code: code,
-		Rows: data,
+		Data: data,
 		Total: total,
 	}
 

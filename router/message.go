@@ -10,6 +10,9 @@ func RegisterMessageRoutes(r *gin.Engine){
 	{
 		// 发送消息
 		message.GET("/sendMsg",service.SendMsg)
-		message.GET("/sendUserMsg",service.SendUserMsg)
+		// 建立websocket连接
+		message.GET("/chat",service.Chat)
+		// 获取表情包列表
+		message.GET("/getEmojiList",service.GetEmojiList)
 	}
 }

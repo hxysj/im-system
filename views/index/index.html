@@ -675,7 +675,6 @@
         justify-content: flex-end;
       }
       .message-bubble {
-        max-width: min(72%, 470px);
         padding: 11px 14px;
         border-radius: 13px 13px 13px 3px;
         background: #f3f4f6;
@@ -684,6 +683,20 @@
         line-height: 1.65;
         white-space: pre-wrap;
         word-break: break-word;
+      }
+      .message-bubble.emoji-bubble {
+        padding: 4px;
+        background: transparent;
+      }
+      .message-item.mine .message-bubble.emoji-bubble {
+        background: transparent;
+      }
+      .message-emoji {
+        display: block;
+        width: 96px;
+        height: 96px;
+        border-radius: 12px;
+        object-fit: contain;
       }
       .message-item.mine .message-bubble {
         border-radius: 13px 13px 3px 13px;
@@ -699,12 +712,85 @@
         text-align: right;
       }
       .composer {
+        position: relative;
         display: flex;
         flex: 0 0 auto;
         align-items: flex-end;
         gap: 12px;
         padding: 15px 18px;
         border-top: 1px solid var(--line);
+      }
+      .composer-tools {
+        position: relative;
+        flex: 0 0 auto;
+      }
+      .emoji-button {
+        width: 42px;
+        height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #ffffff;
+        color: var(--mint-dark);
+        font-size: 20px;
+        line-height: 1;
+      }
+      .emoji-button:hover,
+      .emoji-button.active {
+        border-color: #93c5fd;
+        background: #eff6ff;
+      }
+      .emoji-panel {
+        position: absolute;
+        z-index: 5;
+        bottom: 50px;
+        left: 0;
+        width: 300px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #ffffff;
+        box-shadow: var(--shadow);
+      }
+      .emoji-panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .emoji-grid {
+        display: grid;
+        max-height: 220px;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 7px;
+        overflow: auto;
+      }
+      .emoji-option {
+        display: inline-flex;
+        width: 46px;
+        height: 46px;
+        align-items: center;
+        justify-content: center;
+        padding: 4px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+      .emoji-option:hover {
+        border-color: #93c5fd;
+        background: #eff6ff;
+      }
+      .emoji-option img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .emoji-empty {
+        padding: 20px 0;
+        color: var(--muted);
+        font-size: 12px;
+        text-align: center;
       }
       .composer textarea {
         min-height: 42px;
@@ -774,7 +860,9 @@
         font-size: 12px;
       }
       .member-cell span {
-        display: block;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         margin-top: 3px;
         color: var(--muted);
         font-size: 10px;
@@ -1018,7 +1106,7 @@
         const modulePaths = [
           ["/views/user/login.html", "#auth-module"],
           ["/views/index/workspace.html", "#workspace-module"],
-          ["/views/message/index.html", "#chat-module"],
+          ["/views/message/index.html?v=emoji-2", "#chat-module"],
           ["/views/user/index.html", "#member-module"],
           ["/views/user/modal.html", "#member-modal-module"]
         ]
@@ -1051,6 +1139,10 @@
               currentView: "chat",
               searchText: "",
               draft: "",
+              emojis: [],
+              emojiPanelOpen: false,
+              emojiLoading: false,
+              emojiError: "",
               authForm: { name: "", password: "", repassword: "" },
               session: { user: null, token: "" },
               users: [],
@@ -1092,6 +1184,7 @@
             }
           },
           mounted() {
+            this.loadEmojis()
             const cached = sessionStorage.getItem("im-session")
             if (cached) {
               try {
@@ -1133,6 +1226,33 @@
                   this.toast.visible = false
                 }, 2600)
               }
+            },
+            assetUrl(path) {
+              if (!path) return ""
+              if (/^https?:\/\//i.test(path)) return path
+              const base = API_ROOT.replace(/\/$/, "")
+              return `${base}${path.startsWith("/") ? "" : "/"}${path}`
+            },
+            async loadEmojis() {
+              this.emojiLoading = true
+              this.emojiError = ""
+              try {
+                const response = await api.get("/msg/getEmojiList")
+                const payload = response.data || {}
+                const code = payload.code ?? payload.Code
+                const list = payload.data ?? payload.Data ?? payload.Rows
+                if (code !== 0 || !Array.isArray(list))
+                  throw new Error("表情列表响应格式错误")
+                this.emojis = list
+              } catch (error) {
+                this.emojiError = "表情加载失败"
+              } finally {
+                this.emojiLoading = false
+              }
+            },
+            toggleEmojiPanel() {
+              this.emojiPanelOpen = !this.emojiPanelOpen
+              if (this.emojiPanelOpen && !this.emojis.length) this.loadEmojis()
             },
             async submitAuth() {
               if (
@@ -1209,6 +1329,9 @@
                   this.formBody({ user_id: this.session.user.id })
                 )
                 const payload = response.data || {}
+                // 兼容后端统一响应的大小写字段和旧版 Rows 字段
+                payload.Code = payload.code ?? payload.Code
+                payload.Rows = payload.data ?? payload.Data ?? payload.Rows
                 if (payload.Code !== 0) throw new Error("好友列表加载失败")
                 this.friends = Array.isArray(payload.Rows) ? payload.Rows : []
                 if (
@@ -1229,6 +1352,7 @@
             selectUser(person) {
               this.selectedUser = person
               this.messages = []
+              this.emojiPanelOpen = false
               this.connectSocket()
             },
             connectSocket() {
@@ -1237,7 +1361,7 @@
               const base = API_ROOT || window.location.origin
               const wsBase = base.replace(/^http/, "ws")
               this.socket = new WebSocket(
-                `${wsBase}/msg/sendUserMsg?userId=${encodeURIComponent(this.session.user.id)}`
+                `${wsBase}/msg/chat?userId=${encodeURIComponent(this.session.user.id)}`
               )
               this.socket.onopen = () => {
                 this.socketConnected = true
@@ -1250,13 +1374,20 @@
               }
               this.socket.onmessage = event => {
                 let content = event.data
+                let media = 1
+                let url = ""
                 try {
                   const payload = JSON.parse(event.data)
                   content = payload.Content || payload.content || event.data
+                  media = Number(payload.Media || payload.media || 1)
+                  // 表情消息的图片地址由后端透传在 url 字段中
+                  url = payload.Url || payload.url || ""
                 } catch (error) {}
                 this.messages.push({
                   id: `${Date.now()}-${Math.random()}`,
                   content,
+                  media,
+                  url,
                   mine: false,
                   targetId: this.selectedUser.ID,
                   time: this.timeNow()
@@ -1266,13 +1397,20 @@
             },
             sendMessage() {
               if (!this.draft || !this.selectedUser) return
-              const content = this.draft
+              this.sendChatMessage(this.draft, 1)
+            },
+            sendEmoji(emoji) {
+              if (!emoji || !emoji.file || !this.selectedUser) return
+              this.sendChatMessage("", 2, emoji.name, emoji.file)
+            },
+            sendChatMessage(content, media, name = "", url = "") {
               const packet = {
                 type: 2,
-                media: 1,
+                media,
                 fromId: this.session.user.id,
                 targetId: this.selectedUser.ID,
-                content
+                content,
+                url
               }
               if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
                 this.showToast("实时通道尚未连接，请稍后重试", "error")
@@ -1282,11 +1420,15 @@
               this.messages.push({
                 id: `${Date.now()}-${Math.random()}`,
                 content,
+                media,
+                name,
+                url,
                 mine: true,
                 targetId: this.selectedUser.ID,
                 time: this.timeNow()
               })
-              this.draft = ""
+              if (media === 1) this.draft = ""
+              this.emojiPanelOpen = false
               this.scrollMessages()
             },
             timeNow() {

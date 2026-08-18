@@ -1,8 +1,10 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -69,6 +71,58 @@ func MsgHandler(ws *websocket.Conn,c *gin.Context){
 // 	MsgHandler(ws,ctx)
 // }
 
-func SendUserMsg(ctx *gin.Context){
+// 
+func Chat(ctx *gin.Context){
 	models.Chat(ctx.Writer,ctx.Request)
 }
+
+type EmojiInfo struct{
+	Emojis []Emoji `json:"emojis"`
+}
+
+type Emoji struct{
+	ID int `json:"id"`
+	Name string `json:"name"`
+	File string `json:"file"`
+}
+
+// GetEmojiList
+// Summary 获取表情包
+// @Tags 消息模块
+// Success 200 {string} json{"code","message"}
+// @Router /msg/getEmojiList [get]
+func GetEmojiList(ctx *gin.Context){
+	// 读取文件，获取文件内容
+	content,err := os.ReadFile("asset/emoji/info.json")
+	if err !=nil{
+		fmt.Println(err)
+		utils.RespFail(ctx.Writer,"获取表情包失败！")
+		return
+	}
+	var Result EmojiInfo
+	err = json.Unmarshal(content,&Result)
+	if err !=nil{
+		fmt.Println(err)
+		utils.RespFail(ctx.Writer,"获取表情包失败！")
+		return
+	}
+
+	for index := range Result.Emojis{
+		Result.Emojis[index].File = "/asset/emoji/" + Result.Emojis[index].File
+	}
+	utils.RespOkList(ctx.Writer,Result.Emojis,len(Result.Emojis))
+}
+
+// GetMessageList
+// Summary 获取用户私聊消息
+// @Tags 消息模块
+// @Param user_id query string false `用户id`
+// @Param target_id query string false `好友id`
+// @Param limit query string false `消息数量`
+// @Param page query string false `页码`
+// func GetMessageList(ctx *gin.Context){
+// 	userId,_ := strconv.Atoi(ctx.Query("user_id"))
+// 	targetId,_ := strconv.Atoi(ctx.Query("target_id"))
+// 	limit,_ := strconv.Atoi(ctx.Query("limit"))
+// 	page,_ := strconv.Atoi(ctx.Query("page"))
+// }
