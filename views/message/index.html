@@ -72,7 +72,18 @@
         :class="{ mine: item.mine }"
       >
         <div>
-          <div class="message-bubble">{{ item.content }}</div>
+          <div
+            class="message-bubble"
+            :class="{ 'emoji-bubble': item.media === 2 }"
+          >
+            <img
+              v-if="item.media === 2"
+              class="message-emoji"
+              :src="assetUrl(item.url)"
+              :alt="item.name || 'emoji'"
+            />
+            <span v-else>{{ item.content }}</span>
+          </div>
           <div class="message-meta">
             {{ item.mine ? '我' : (selectedUser ? selectedUser.Name : '系统') }}
             · {{ item.time }}
@@ -81,6 +92,40 @@
       </div>
     </div>
     <form class="composer" @submit.prevent="sendMessage">
+      <div class="composer-tools">
+        <button
+          class="emoji-button"
+          :class="{ active: emojiPanelOpen }"
+          type="button"
+          :disabled="!selectedUser"
+          title="选择表情"
+          aria-label="选择表情"
+          @click="toggleEmojiPanel"
+        >
+          ☺
+        </button>
+        <div v-if="emojiPanelOpen" class="emoji-panel">
+          <div class="emoji-panel-head">
+            <span>表情包</span><span>{{ emojis.length }}</span>
+          </div>
+          <div v-if="emojiLoading" class="emoji-empty">正在加载表情</div>
+          <div v-else-if="emojiError" class="emoji-empty">{{ emojiError }}</div>
+          <div v-else-if="!emojis.length" class="emoji-empty">暂无表情</div>
+          <div v-else class="emoji-grid">
+            <button
+              v-for="emoji in emojis"
+              :key="emoji.id"
+              class="emoji-option"
+              type="button"
+              :title="emoji.name"
+              :aria-label="emoji.name"
+              @click="sendEmoji(emoji)"
+            >
+              <img :src="assetUrl(emoji.file)" :alt="emoji.name" />
+            </button>
+          </div>
+        </div>
+      </div>
       <textarea
         v-model.trim="draft"
         :disabled="!selectedUser"

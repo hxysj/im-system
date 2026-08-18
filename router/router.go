@@ -8,19 +8,18 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-
-func Router() *gin.Engine{
+func Router() *gin.Engine {
 	r := gin.Default()
 	// swagger
 	docs.SwaggerInfo.BasePath = ""
-	r.GET("/swagger/*any",ginSwagger.WrapHandler(swaggerfiles.Handler))
-	
-	// 静态资源
-	r.Static("/asset","asset/")
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+
+	// 静态资源可直接通过 /asset/emoji/1.gif 这类链接访问
+	r.Static("/asset", "asset/")
 	r.Static("/views", "views/")
 
 	// 首页模块
-	r.GET("/index",service.GetIndex)
+	r.GET("/index", service.GetIndex)
 
 	// 注册用户模块
 	RegisterUserRoutes(r)
@@ -28,6 +27,6 @@ func Router() *gin.Engine{
 	RegisterMessageRoutes(r)
 	// 注册关系模块
 	RegisterContactRoutes(r)
-	
+
 	return r
 }

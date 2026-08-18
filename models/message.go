@@ -102,6 +102,7 @@ func sendProc(node *Node){
 		select{
 		// 监听到消息队列的数据发送变化的时候触发取出
 		case data:= <-node.DataQueue:
+			fmt.Println("[send]<<<<<  ",string(data))
 			// 通过websocket发送消息，websocket.TextMessage 知道消息为文本消息，data是从消息队列中获取的
 			err := node.Conn.WriteMessage(websocket.TextMessage,data)
 			if err !=nil {
@@ -122,7 +123,7 @@ func recvProc(node *Node){
 			return
 		}
 		broadMsg(data)  //广播消息
-		fmt.Println("[ws]<<<<<<",data)
+		fmt.Println("[ws]<<<<<<  ",string(data))
 	}
 }
 
@@ -138,6 +139,7 @@ func init(){
 	go udpSendProc()
 	// 船舰广播接收消息的进程
 	go udpRecvProc()
+	fmt.Println("inti goruntine")
 }
 
 // UDP服务发送消息
@@ -159,6 +161,7 @@ func udpSendProc(){
 		select {
 		// 监听UDP通道的消息
 		case data := <-udpSendChan:
+			fmt.Println("[udpSendProc] >>> ",string(data))
 			_,err := con.Write(data)
 			if err != nil{
 				fmt.Println(err)
@@ -183,12 +186,12 @@ func udpRecvProc(){
 	defer con.Close()
 	for {
 		var buf [512]byte  //创建 512 字节的缓冲区
-		_,err := con.Read(buf[0:])  //读取 UDP 数据到缓冲区
+		n,err := con.Read(buf[0:])  //读取 UDP 数据到缓冲区
 		if err !=nil {
 			fmt.Println(err)
 			return
 		}
-		dispatch(buf[0:]) //将收到的数据分发处理
+		dispatch(buf[0:n]) //将收到的数据分发处理
 	}
 }
 
@@ -200,15 +203,19 @@ func dispatch(data []byte){
 		fmt.Println(err)
 		return
 	}
+	fmt.Println("[dispatch] >>> ",msg.TargetId,string(data))
+	// 将消息存储到数据库中
+
 	switch msg.Type{
 	// 检测消息类型是1的
-	case 1:
+	case 2:
 		sendMsg(msg.TargetId,data)
 	}
 }
 
 
 func sendMsg(userId int64,msg []byte){
+	fmt.Println("[sendMsg] >>> ",userId,string(msg))
 	rwLocker.Lock()
 	// 获取接收者的实例
 	node,ok := clientMap[userId]
