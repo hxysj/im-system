@@ -74,13 +74,16 @@
         <div>
           <div
             class="message-bubble"
-            :class="{ 'emoji-bubble': item.media === 2 }"
+            :class="{
+              'emoji-bubble': item.media === 2,
+              'image-bubble': item.media === 3
+            }"
           >
             <img
-              v-if="item.media === 2"
-              class="message-emoji"
+              v-if="item.media === 2 || item.media === 3"
+              :class="item.media === 2 ? 'message-emoji' : 'message-image'"
               :src="assetUrl(item.url)"
-              :alt="item.name || 'emoji'"
+              :alt="item.name || (item.media === 3 ? 'image' : 'emoji')"
             />
             <span v-else>{{ item.content }}</span>
           </div>
@@ -93,6 +96,43 @@
     </div>
     <form class="composer" @submit.prevent="sendMessage">
       <div class="composer-tools">
+        <button
+          class="composer-icon-button"
+          type="button"
+          :disabled="!selectedUser"
+          title="更多表情"
+          aria-label="更多表情"
+          @click="toggleEmojiPanel"
+        >
+          ◇
+        </button>
+        <button
+          class="image-button"
+          type="button"
+          :disabled="!selectedUser || uploadingImage"
+          title="发送图片"
+          aria-label="发送图片"
+          @click="$refs.imageInput.click()"
+        >
+          ▧
+        </button>
+        <input
+          ref="imageInput"
+          class="image-input"
+          type="file"
+          accept="image/*"
+          @change="uploadImage"
+        />
+        <button
+          class="composer-icon-button"
+          type="button"
+          :disabled="!selectedUser"
+          title="剪贴工具"
+          aria-label="剪贴工具"
+          @click="showToast('剪贴工具暂未开放', 'error')"
+        >
+          ✂
+        </button><span class="toolbar-caret">⌄</span>
         <button
           class="emoji-button"
           :class="{ active: emojiPanelOpen }"
@@ -133,6 +173,15 @@
         @keydown.enter.exact.prevent="sendMessage"
       ></textarea
       ><button
+        class="voice-button"
+        type="button"
+        :disabled="!selectedUser"
+        title="语音输入"
+        aria-label="语音输入"
+        @click="showToast('语音输入暂未开放', 'error')"
+      >
+        ♫
+      </button><span class="toolbar-divider"></span><button
         class="send-button"
         type="submit"
         :disabled="!selectedUser || !draft"

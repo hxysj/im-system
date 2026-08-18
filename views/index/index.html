@@ -688,7 +688,14 @@
         padding: 4px;
         background: transparent;
       }
+      .message-bubble.image-bubble {
+        padding: 4px;
+        background: transparent;
+      }
       .message-item.mine .message-bubble.emoji-bubble {
+        background: transparent;
+      }
+      .message-item.mine .message-bubble.image-bubble {
         background: transparent;
       }
       .message-emoji {
@@ -696,6 +703,13 @@
         width: 96px;
         height: 96px;
         border-radius: 12px;
+        object-fit: contain;
+      }
+      .message-image {
+        display: block;
+        max-width: min(320px, 60vw);
+        max-height: 240px;
+        border-radius: 10px;
         object-fit: contain;
       }
       .message-item.mine .message-bubble {
@@ -715,34 +729,75 @@
         position: relative;
         display: flex;
         flex: 0 0 auto;
-        align-items: flex-end;
-        gap: 12px;
-        padding: 15px 18px;
-        border-top: 1px solid var(--line);
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch;
+        margin: 10px 18px 14px;
+        padding: 10px 12px 8px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #ffffff;
       }
       .composer-tools {
         position: relative;
-        flex: 0 0 auto;
+        z-index: 2;
+        display: flex;
+        flex: 0 0 34px;
+        align-items: center;
+        gap: 3px;
+        order: 2;
+        padding-right: 180px;
       }
+      .composer-icon-button,
       .emoji-button {
-        width: 42px;
-        height: 42px;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: #ffffff;
+        width: 30px;
+        height: 30px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
         color: var(--mint-dark);
-        font-size: 20px;
+        font-size: 19px;
         line-height: 1;
       }
+      .emoji-button {
+        order: 1;
+      }
+      .composer-icon-button {
+        order: 2;
+      }
+      .composer-icon-button:hover,
       .emoji-button:hover,
       .emoji-button.active {
-        border-color: #93c5fd;
-        background: #eff6ff;
+        background: var(--mint);
+        color: var(--mint-dark);
+      }
+      .image-button {
+        width: 30px;
+        height: 30px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--mint-dark);
+        font-size: 18px;
+        line-height: 1;
+        order: 3;
+      }
+      .image-button:hover {
+        background: var(--mint);
+        color: var(--mint-dark);
+      }
+      .image-input {
+        display: none;
+      }
+      .toolbar-caret {
+        margin-left: -2px;
+        color: #7b8490;
+        font-size: 12px;
       }
       .emoji-panel {
         position: absolute;
         z-index: 5;
-        bottom: 50px;
+        bottom: 38px;
         left: 0;
         width: 300px;
         padding: 12px;
@@ -793,29 +848,62 @@
         text-align: center;
       }
       .composer textarea {
-        min-height: 42px;
-        max-height: 110px;
-        flex: 1;
-        padding: 11px 12px;
-        border: 1px solid var(--line);
-        border-radius: 10px;
+        width: 100%;
+        min-height: 96px;
+        max-height: 150px;
+        flex: 1 1 auto;
+        order: 1;
+        padding: 4px 6px;
+        border: 0;
+        border-radius: 8px;
         outline: 0;
         resize: none;
         font-size: 13px;
       }
       .composer textarea:focus {
-        border-color: #2563eb;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        border-color: #cbd5e1;
+        box-shadow: none;
+      }
+      .voice-button {
+        position: absolute;
+        right: 100px;
+        bottom: 10px;
+        z-index: 2;
+        width: 30px;
+        height: 30px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--mint-dark);
+        font-size: 18px;
+      }
+      .voice-button:hover {
+        background: var(--mint);
+        color: var(--mint-dark);
+      }
+      .toolbar-divider {
+        position: absolute;
+        right: 88px;
+        bottom: 13px;
+        z-index: 2;
+        width: 1px;
+        height: 22px;
+        background: var(--line);
       }
       .send-button {
+        position: absolute;
+        right: 12px;
+        bottom: 8px;
+        z-index: 2;
         width: 70px;
-        height: 42px;
+        height: 34px;
         border: 0;
-        border-radius: 9px;
+        border-radius: 8px;
         background: var(--mint-dark);
         color: #fff;
         font-size: 12px;
         font-weight: 700;
+        order: 3;
       }
       .send-button:hover {
         background: #1e40af;
@@ -1106,7 +1194,7 @@
         const modulePaths = [
           ["/views/user/login.html", "#auth-module"],
           ["/views/index/workspace.html", "#workspace-module"],
-          ["/views/message/index.html?v=emoji-2", "#chat-module"],
+          ["/views/message/index.html?v=layout-1", "#chat-module"],
           ["/views/user/index.html", "#member-module"],
           ["/views/user/modal.html", "#member-modal-module"]
         ]
@@ -1143,6 +1231,7 @@
               emojiPanelOpen: false,
               emojiLoading: false,
               emojiError: "",
+              uploadingImage: false,
               authForm: { name: "", password: "", repassword: "" },
               session: { user: null, token: "" },
               users: [],
@@ -1253,6 +1342,31 @@
             toggleEmojiPanel() {
               this.emojiPanelOpen = !this.emojiPanelOpen
               if (this.emojiPanelOpen && !this.emojis.length) this.loadEmojis()
+            },
+            async uploadImage(event) {
+              const file = event.target.files && event.target.files[0]
+              event.target.value = ""
+              if (!file || !this.selectedUser) return
+              if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+                this.showToast("实时通道尚未连接，请稍后重试", "error")
+                return
+              }
+              this.uploadingImage = true
+              try {
+                const formData = new FormData()
+                formData.append("file", file)
+                const response = await api.post("/attach/upload", formData)
+                const payload = response.data || {}
+                const code = payload.code ?? payload.Code
+                const url = payload.data ?? payload.Data
+                if (code !== 0 || typeof url !== "string" || !url)
+                  throw new Error("图片上传响应格式错误")
+                this.sendChatMessage("", 3, "", url)
+              } catch (error) {
+                this.showToast("图片上传失败", "error")
+              } finally {
+                this.uploadingImage = false
+              }
             },
             async submitAuth() {
               if (
