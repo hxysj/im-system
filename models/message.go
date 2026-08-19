@@ -15,6 +15,7 @@ import (
 
 type Message struct {
 	gorm.Model
+	MessageId int64 `gorm:"not null;uniqueIndex" json:"message_id"`
 	FromId int64 //发送者
 	TargetId int64 // 接收者
 	Type int  // 消息类型 1群聊 2私聊 3广播

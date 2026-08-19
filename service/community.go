@@ -16,7 +16,7 @@ func CreateCommunity(c *gin.Context){
 	community.OwnerId = uint(ownerId)
 	community.Name = name
 	community.Desc = desc
-
+	community.CommunityId = utils.NextId()
 	status,msg := models.CreateCommunity(&community)
 
 	if status == 0{
