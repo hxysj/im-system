@@ -7,6 +7,7 @@ import (
 
 type UserBasic struct{
 	gorm.Model
+	UserId int64 `gorm:"not null;uniqueIndex" json:"user_id"`
 	Name string
 	Password string
 	Phone string `valid:"matches(^1[3-9]{1}\\d{9}$)"`

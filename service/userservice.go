@@ -93,6 +93,7 @@ func CreateUser(ctx *gin.Context){
 
 	user.Password = utils.MakePassword(password,salt)
 	user.Salt =salt
+	user.UserId = utils.NextId()
 
 	models.CreateUser(user)
 

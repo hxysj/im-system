@@ -9,6 +9,7 @@ import (
 
 type Community struct {
 	gorm.Model
+	CommunityId int64 `gorm:"not null;uniqueIndex" json:"community_id"`
 	Name string
 	OwnerId uint
 	Img string
@@ -57,7 +58,7 @@ func JoinGroups(userId uint,com string)(int,string){
 	if !contact.CreatedAt.IsZero(){
 		return -1,"已存在于该群聊中"
 	}else{
-		contact.TargetId = community.ID
+		contact.TargetId = uint(community.CommunityId)
 		utils.DB.Create(&contact)
 		return 0,"加入成功"
 	}
