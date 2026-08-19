@@ -42,6 +42,14 @@
       >
         <span class="nav-icon">♧</span><span>好友</span>
       </button>
+      <button
+        class="nav-button"
+        :class="{ active: currentView === 'communities' }"
+        type="button"
+        @click="openCommunities"
+      >
+        <span class="nav-icon">群</span><span>群聊</span>
+      </button>
       <div class="sidebar-note">
         <strong>实时通道</strong
         ><span>连接到服务端后，消息会通过 WebSocket 即时送达。</span>
@@ -91,6 +99,7 @@
       <section class="workspace-content">
         <div id="chat-module"></div>
         <div id="member-module"></div>
+        <div id="community-module"></div>
       </section>
     </main>
   </div>

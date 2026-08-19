@@ -72,3 +72,10 @@ func DeleteUser(user UserBasic) *gorm.DB{
 func UpdateUser(user UserBasic) *gorm.DB{
 	return utils.DB.Model(&user).Updates(UserBasic{Name: user.Name,Password: user.Password,Phone: user.Phone,Email: user.Email,Identity: user.Identity})
 }
+
+// 通过手机号或者名称搜索用户
+func FindUserByPhoneOrNameOrEmail(key string) UserBasic{
+	user := UserBasic{}
+	utils.DB.Where("name = ? or phone = ? or email = ?",key,key,key).First(&user)
+	return user
+}

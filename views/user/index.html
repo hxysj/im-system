@@ -1,4 +1,24 @@
-<div v-else class="members-panel">
+<div v-else-if="currentView === 'friends'" class="members-panel">
+              <section class="friend-search-panel">
+                <div>
+                  <h3>添加好友</h3>
+                  <p>先搜索用户名、手机号或邮箱，确认用户后再添加。</p>
+                </div>
+                <form class="friend-search-form" @submit.prevent="searchUser">
+                  <input v-model.trim="userSearchKeyword" class="search-input" type="search" placeholder="用户名、手机号或邮箱" required />
+                  <button class="ghost-button" type="submit" :disabled="userSearchLoading">{{ userSearchLoading ? '搜索中...' : '搜索' }}</button>
+                </form>
+                <div v-if="userSearchResult" class="friend-search-result">
+                  <span class="avatar">{{ initials(userSearchResult.name || userSearchResult.Name) }}</span>
+                  <div>
+                    <strong>{{ userSearchResult.name || userSearchResult.Name }}</strong>
+                    <span>用户 ID {{ userSearchResult.user_id || userSearchResult.UserId || userSearchResult.id || userSearchResult.ID }}</span>
+                  </div>
+                  <button class="primary-button add-friend-button" type="button" @click="addSearchedUser" :disabled="friendAdding">
+                    {{ friendAdding ? '添加中...' : '添加好友' }}
+                  </button>
+                </div>
+              </section>
               <table class="members-table">
                 <thead>
                   <tr>
