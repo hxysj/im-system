@@ -223,3 +223,12 @@ func Login(ctx *gin.Context){
 			},
 	})
 }
+
+
+// 搜索用户
+// func SearchUser(ctx *gin.Context){
+// 	search := ctx.PostForm("keyword")
+// 	keyword,_ := strconv.Atoi(ctx.PostForm("keyword"))
+
+	
+// }
