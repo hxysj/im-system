@@ -226,10 +226,27 @@ func Login(ctx *gin.Context){
 }
 
 
-// 搜索用户
-// func SearchUser(ctx *gin.Context){
-// 	search := ctx.PostForm("keyword")
-// 	keyword,_ := strconv.Atoi(ctx.PostForm("keyword"))
+// 搜索用户 - 根据手机号或者用户名称
+func SearchUser(ctx *gin.Context){
+	search := ctx.PostForm("keyword")
 
-	
-// }
+	if search == ""{
+		utils.RespFail(ctx.Writer,"不能输入空的内容")
+		return
+	}
+
+	res := models.FindUserByPhoneOrNameOrEmail(search)
+	type UserData struct{
+		UserId int64 `json:"user_id"`
+		Name string `json:"name"`
+		Phone string `json:"phone"`
+		Email string `json:"email"`
+	}
+	data := UserData{
+		UserId:res.UserId,
+		Name:res.Name,
+		Phone:res.Phone,
+		Email:res.Email,
+	}
+	utils.RespOk(ctx.Writer,data,"")
+}

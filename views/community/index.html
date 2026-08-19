@@ -1,0 +1,59 @@
+<section v-if="currentView === 'communities'" class="community-panel">
+  <div class="community-toolbar">
+    <div>
+      <p class="section-kicker">COMMUNITY</p>
+      <h2>群聊空间</h2>
+      <p class="section-description">创建属于你的群聊，也可以通过群名称或群 ID 加入已有群聊。</p>
+    </div>
+    <button class="primary-button community-create-button" type="button" @click="createCommunity" :disabled="communitySaving">
+      {{ communitySaving ? '创建中...' : '创建群聊' }}
+    </button>
+  </div>
+
+  <div class="community-actions">
+    <form class="community-create-form" @submit.prevent="createCommunity">
+      <div class="field">
+        <label for="community-name">群名称</label>
+        <input id="community-name" v-model.trim="communityForm.name" maxlength="40" placeholder="例如：产品讨论组" required />
+      </div>
+      <div class="field">
+        <label for="community-desc">群简介</label>
+        <textarea id="community-desc" v-model.trim="communityForm.desc" maxlength="160" placeholder="介绍一下这个群聊"></textarea>
+      </div>
+      <button class="ghost-button" type="submit" :disabled="communitySaving">保存并创建</button>
+    </form>
+
+    <form class="community-join-form" @submit.prevent="joinCommunity">
+      <label for="community-keyword">加入群聊</label>
+      <div class="inline-form">
+        <input id="community-keyword" v-model.trim="communityJoinKeyword" class="search-input" placeholder="输入群名称或群 ID" required />
+        <button class="ghost-button" type="submit" :disabled="communityJoining">{{ communityJoining ? '加入中...' : '加入' }}</button>
+      </div>
+      <p class="form-hint">加入成功后刷新列表即可查看。</p>
+    </form>
+  </div>
+
+  <div class="community-list-head">
+    <div>
+      <h3>我参与的群聊 <span>{{ communities.length }}</span></h3>
+      <p>群聊数据来自当前账号已创建或已加入的关系。</p>
+    </div>
+    <button class="ghost-button" type="button" @click="refreshCommunities" :disabled="communityLoading">刷新列表</button>
+  </div>
+
+  <div v-if="communityLoading" class="table-empty">正在加载群聊...</div>
+  <div v-else-if="!communities.length" class="community-empty">
+    <strong>还没有群聊</strong>
+    <span>创建一个群聊，或者输入群名称加入已有群聊。</span>
+  </div>
+  <div v-else class="community-grid">
+    <article v-for="community in communities" :key="community.ID || community.id || community.community_id" class="community-card">
+      <div class="community-card-mark">群</div>
+      <div class="community-card-copy">
+        <h3>{{ community.Name || community.name || '未命名群聊' }}</h3>
+        <p>{{ community.Desc || community.desc || '这个群聊还没有简介。' }}</p>
+        <span>ID {{ community.CommunityId || community.community_id || community.ID || community.id }}</span>
+      </div>
+    </article>
+  </div>
+</section>
