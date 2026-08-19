@@ -24,6 +24,7 @@ func main() {
 	utils.DB.AutoMigrate(&models.Message{})
 	utils.DB.AutoMigrate(&models.GroupBasic{})
 	utils.DB.AutoMigrate(&models.Contact{})
+	utils.DB.AutoMigrate(&models.Community{})
 
 	r := router.Router()
 	r.Run()

@@ -45,3 +45,45 @@ func SearchFriend(userId string) ([]UserBasic){
 
 	return users
 }
+
+
+func AddFriend(userId uint,targetId uint) int{
+	user := FindUserById(int(userId))
+
+	if targetId != 0 && user.Salt != ""{
+		contact := Contact{}
+		
+		utils.DB.Where("owen_id = ? and target_id = ? and type = 1",userId,targetId).Find(&contact)
+
+		if contact.ID != 0{
+			return 0
+		}
+
+		// 开启事务
+		tx := utils.DB.Begin()
+		// 事务开启后，不论出现什么异常最终都会Rollback
+		defer func(){
+			if r := recover();r != nil{
+				tx.Rollback()
+			}
+		}()
+
+		contact.OwenId = userId
+		contact.TargetId = targetId
+		contact.Type = 1
+		if err := utils.DB.Create(&contact).Error; err != nil{
+			tx.Rollback()  //回滚数据库
+			return 0
+		}
+
+		owner_contact := Contact{}
+		owner_contact.OwenId = targetId
+		owner_contact.TargetId = userId
+		owner_contact.Type = 1
+		utils.DB.Create(&owner_contact)
+		// 两个操作都成功了之后才提交
+		tx.Commit()
+		return 1
+	}
+	return 0
+}

@@ -9,5 +9,6 @@ func RegisterContactRoutes(r *gin.Engine) {
 	contact := r.Group("/contact")
 	{
 		contact.POST("/getFriendsById", service.SearchFriends)
+		contact.POST("/addFriend",service.AddFriend)
 	}
 }
