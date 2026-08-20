@@ -13,6 +13,7 @@ func RegisterUserRoutes(r *gin.Engine) {
 		user.GET("/deleteUser",service.DeleteUser)
 		user.POST("/update",service.UpdateUser)
 		user.POST("/searchUser",service.SearchUser)
+		user.POST("/changePassword",service.UpdatePassword)
 		// 登录注册模块
 		user.POST("/register",service.CreateUser)
 		user.POST("/login",service.Login)

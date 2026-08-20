@@ -122,11 +122,10 @@ func DeleteUser(ctx *gin.Context){
 }
 
 // UpdateUser
-// Summary 更新用户
+// Summary 更新用户信息
 // @Tags 用户模块
 // @param id formData string false "用户id"
 // @param name formData string false "名称"
-// @param password formData string false "密码"
 // @param phone formData string false "手机号"
 // @param email formData string false "邮箱"
 // @param identity formData string false "性别"
@@ -137,7 +136,6 @@ func UpdateUser(ctx *gin.Context){
 	id,_ := strconv.Atoi(ctx.PostForm("id"))
 	// 获取post请求的参数
 	name := ctx.PostForm("name")
-	password := ctx.PostForm("password")
 	phone := ctx.PostForm("phone")
 	email := ctx.PostForm("email")
 	identity := ctx.PostForm("identity")
@@ -153,7 +151,6 @@ func UpdateUser(ctx *gin.Context){
 
 	user.UserId = int64(id)
 	user.Name = name
-	user.Password = utils.MakePassword(password,res.Salt)
 	user.Phone = phone
 	user.Email = email
 	user.Identity = identity
@@ -210,7 +207,15 @@ func Login(ctx *gin.Context){
 	// 登录成功后生成token
 	str := fmt.Sprintf("%d",time.Now().Unix())
 	temp := utils.MD5Encode(str)
-	utils.DB.Model(&res).Where("user_id = ?",res.ID).Update("identity",temp)
+	nowTime := time.Now()	
+	if err := utils.DB.Model(&res).Where("user_id = ?",res.ID).
+	Updates(map[string]interface{}{
+		"identity":temp,
+		"login_time":nowTime,
+	});err != nil{
+		utils.RespFail(ctx.Writer,"登录失败！")
+		return
+	}
 
 	type LoginResult struct{
 		Token string `json:"token"`
@@ -255,4 +260,25 @@ func SearchUser(ctx *gin.Context){
 		Email:res.Email,
 	}
 	utils.RespOk(ctx.Writer,data,"")
+}
+
+// 修改密码
+func UpdatePassword(ctx *gin.Context){
+	user_id,_ := strconv.Atoi(ctx.PostForm("user_id"))
+	oldPassword := ctx.PostForm("old_password")
+	newPassword := ctx.PostForm("new_password")
+	reNewPassword := ctx.PostForm("re_new_password")
+
+	if newPassword != reNewPassword{
+		utils.RespFail(ctx.Writer,"两次密码不一致")
+		return
+	}
+
+	code,msg := models.UpdateUserPassword(int64(user_id),oldPassword,newPassword)
+
+	if code == -1{
+		utils.RespFail(ctx.Writer,msg)
+	}else{
+		utils.RespOk(ctx.Writer,nil,"修改成功！")
+	}
 }

@@ -11,4 +11,4 @@ redis:
   poolSize: 30
   minIdleCoon: 30
 id_generator:
-  node_id: 819
+  node_id: 20

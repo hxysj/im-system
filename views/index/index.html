@@ -962,8 +962,14 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .friend-search-result strong { font-size: 12px; }
-      .friend-search-result span:not(.avatar) { margin-top: 3px; color: var(--muted); font-size: 10px; }
+      .friend-search-result strong {
+        font-size: 12px;
+      }
+      .friend-search-result span:not(.avatar) {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 10px;
+      }
       .add-friend-button {
         width: auto;
         height: 32px;
@@ -984,7 +990,9 @@
         justify-content: space-between;
         gap: 18px;
       }
-      .community-toolbar { padding: 5px 2px 20px; }
+      .community-toolbar {
+        padding: 5px 2px 20px;
+      }
       .section-kicker {
         margin: 0 0 7px;
         color: var(--mint-dark);
@@ -1004,8 +1012,17 @@
         color: var(--muted);
         font-size: 12px;
       }
-      .community-create-button { width: auto; min-width: 110px; margin-top: 9px; padding: 0 15px; }
-      .community-actions { display: flex; gap: 14px; margin-bottom: 22px; }
+      .community-create-button {
+        width: auto;
+        min-width: 110px;
+        margin-top: 9px;
+        padding: 0 15px;
+      }
+      .community-actions {
+        display: flex;
+        gap: 14px;
+        margin-bottom: 22px;
+      }
       .community-create-form,
       .community-join-form {
         min-width: 0;
@@ -1015,25 +1032,197 @@
         border-radius: 13px;
         background: #fff;
       }
-      .community-create-form .field { margin-bottom: 11px; }
-      .community-create-form textarea { min-height: 62px; }
-      .community-create-form .ghost-button { width: 100%; }
-      .community-join-form > label { display: block; margin-bottom: 8px; color: #4b5563; font-size: 12px; font-weight: 700; }
-      .inline-form { display: flex; gap: 8px; }
-      .inline-form .search-input { min-width: 0; flex: 1; }
-      .community-join-form .form-hint { margin: 9px 0 0; color: var(--muted); }
-      .community-list-head { align-items: center; margin-bottom: 12px; }
-      .community-list-head h3 { margin: 0; font-size: 14px; }
-      .community-list-head h3 span { color: var(--muted); font-weight: 400; }
-      .community-grid { display: flex; flex-wrap: wrap; gap: 12px; }
-      .community-card { display: flex; min-width: 280px; flex: 1 1 320px; align-items: flex-start; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 13px; background: #fff; box-shadow: var(--soft-shadow); }
-      .community-card-mark { display: inline-flex; width: 38px; height: 38px; flex: 0 0 38px; align-items: center; justify-content: center; border-radius: 10px; background: #eff6ff; color: var(--mint-dark); font-size: 14px; font-weight: 800; }
-      .community-card-copy { min-width: 0; }
-      .community-card-copy h3 { margin: 1px 0 5px; font-size: 13px; }
-      .community-card-copy p { margin: 0 0 8px; color: var(--muted); font-size: 11px; line-height: 1.6; }
-      .community-card-copy span { color: #9aa9a0; font-size: 10px; }
-      .community-empty { display: flex; min-height: 170px; align-items: center; justify-content: center; flex-direction: column; color: var(--muted); font-size: 12px; text-align: center; }
-      .community-empty strong { margin-bottom: 6px; color: #6b7280; font-size: 14px; }
+      .community-create-form .field {
+        margin-bottom: 11px;
+      }
+      .community-create-form textarea {
+        min-height: 62px;
+      }
+      .community-create-form .ghost-button {
+        width: 100%;
+      }
+      .community-join-form > label {
+        display: block;
+        margin-bottom: 8px;
+        color: #4b5563;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .inline-form {
+        display: flex;
+        gap: 8px;
+      }
+      .inline-form .search-input {
+        min-width: 0;
+        flex: 1;
+      }
+      .community-join-form .form-hint {
+        margin: 9px 0 0;
+        color: var(--muted);
+      }
+      .community-list-head {
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .community-list-head h3 {
+        margin: 0;
+        font-size: 14px;
+      }
+      .community-list-head h3 span {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .community-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .community-card {
+        display: flex;
+        min-width: 280px;
+        flex: 1 1 320px;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        background: #fff;
+        box-shadow: var(--soft-shadow);
+      }
+      .community-card-mark {
+        display: inline-flex;
+        width: 38px;
+        height: 38px;
+        flex: 0 0 38px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        background: #eff6ff;
+        color: var(--mint-dark);
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .community-card-copy {
+        min-width: 0;
+      }
+      .community-card-copy h3 {
+        margin: 1px 0 5px;
+        font-size: 13px;
+      }
+      .community-card-copy p {
+        margin: 0 0 8px;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.6;
+      }
+      .community-card-copy span {
+        color: #9aa9a0;
+        font-size: 10px;
+      }
+      .community-invite-row {
+        display: flex;
+        gap: 7px;
+        margin-top: 10px;
+      }
+      .community-invite-row .search-input {
+        height: 30px;
+        min-width: 0;
+        flex: 1;
+        font-size: 11px;
+      }
+      .community-invite-row .ghost-button {
+        padding: 5px 9px;
+      }
+      .community-empty {
+        display: flex;
+        min-height: 170px;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        color: var(--muted);
+        font-size: 12px;
+        text-align: center;
+      }
+      .community-empty strong {
+        margin-bottom: 6px;
+        color: #6b7280;
+        font-size: 14px;
+      }
+      .request-panel {
+        min-height: 0;
+        flex: 1;
+        padding: 3px 0;
+        overflow: auto;
+      }
+      .request-toolbar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 5px 2px 20px;
+      }
+      .request-toolbar h2 {
+        margin: 0;
+        font-family: Georgia, "Songti SC", serif;
+        font-size: 30px;
+        font-weight: 400;
+      }
+      .request-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .request-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 15px 17px;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        background: #fff;
+        box-shadow: var(--soft-shadow);
+      }
+      .request-copy {
+        min-width: 0;
+        flex: 1;
+      }
+      .request-copy strong,
+      .request-copy span,
+      .request-copy small {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .request-copy strong {
+        font-size: 13px;
+      }
+      .request-copy span {
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .request-copy small {
+        margin-top: 6px;
+        color: #9aa9a0;
+        font-size: 10px;
+      }
+      .request-action {
+        width: auto;
+        height: 31px;
+        margin: 0;
+        padding: 0 11px;
+        font-size: 11px;
+      }
+      .nav-badge {
+        min-width: 18px;
+        padding: 2px 5px;
+        border-radius: 9px;
+        background: var(--coral);
+        color: #fff;
+        font-size: 10px;
+        text-align: center;
+      }
       .members-table {
         width: 100%;
         border-collapse: collapse;
@@ -1317,6 +1506,7 @@
           ["/views/message/index.html?v=layout-1", "#chat-module"],
           ["/views/user/index.html", "#member-module"],
           ["/views/community/index.html", "#community-module"],
+          ["/views/relation/index.html", "#request-module"],
           ["/views/user/modal.html", "#member-modal-module"]
         ]
         const fragments = await Promise.all(
@@ -1362,6 +1552,10 @@
               users: [],
               friends: [],
               communities: [],
+              relationRequests: [],
+              relationLoading: false,
+              relationAction: null,
+              communityInviteTarget: "",
               communityLoading: false,
               communitySaving: false,
               communityJoining: false,
@@ -1395,12 +1589,17 @@
               const keyword = this.searchText.toLowerCase()
               return this.friends.filter(
                 item =>
-                  item.ID !== this.session.user.id &&
+                  this.userId(item) !== String(this.session.user.id) &&
                   (!keyword ||
                     String(item.Name || "")
                       .toLowerCase()
                       .includes(keyword))
               )
+            },
+            pendingRequestCount() {
+              return this.relationRequests.filter(
+                item => Number(item.status ?? item.Status) === 1
+              ).length
             }
           },
           mounted() {
@@ -1409,6 +1608,7 @@
             if (cached) {
               try {
                 this.session = JSON.parse(cached)
+                if (this.session.user) this.session.user.id = String(this.session.user.id)
                 this.refreshFriends()
               } catch (error) {
                 sessionStorage.removeItem("im-session")
@@ -1423,6 +1623,10 @@
                   value == null ? "" : String(value)
                 ])
               )
+            },
+            userId(person) {
+              // 所有业务 ID 按字符串发送，避免数字精度和类型不一致。
+              return String(person?.user_id ?? person?.UserId ?? person?.id ?? person?.ID ?? "")
             },
             initials(name) {
               return String(name || "?")
@@ -1525,12 +1729,15 @@
                   this.showToast("注册成功，请登录")
                   return
                 }
-                const result = body.data && body.data.data ? body.data : body
-                if (result.code !== 0 || !result.data)
+                const result = body.data || body.Data
+                if ((body.code ?? body.Code) !== 0 || !result)
                   throw new Error(result.message || body.message || "登录失败")
                 this.session = {
-                  user: { id: result.data.id, name: this.authForm.name },
-                  token: result.data.token || ""
+                  user: {
+                    id: String(result.user_id || result.id || result.ID),
+                    name: result.name || this.authForm.name
+                  },
+                  token: result.token || ""
                 }
                 sessionStorage.setItem(
                   "im-session",
@@ -1571,7 +1778,7 @@
                 // 联系人仅使用关系表返回的数据，避免将系统全部用户当作好友。
                 const response = await api.post(
                   "/contact/getFriendsById",
-                  this.formBody({ user_id: this.session.user.id })
+                  this.formBody({ user_id: String(this.session.user.id) })
                 )
                 const payload = response.data || {}
                 // 兼容后端统一响应的大小写字段和旧版 Rows 字段
@@ -1581,7 +1788,7 @@
                 this.friends = Array.isArray(payload.Rows) ? payload.Rows : []
                 if (
                   !this.selectedUser ||
-                  !this.friends.some(item => item.ID === this.selectedUser.ID)
+                  !this.friends.some(item => this.userId(item) === this.userId(this.selectedUser))
                 )
                   this.selectedUser = this.filteredFriends[0] || null
                 if (this.selectedUser) this.connectSocket()
@@ -1611,21 +1818,34 @@
                 const payload = response.data || {}
                 const code = payload.code ?? payload.Code
                 const result = payload.data ?? payload.Data
-                if (code !== 0 || !result || !(result.id || result.ID || result.user_id)) {
+                if (
+                  code !== 0 ||
+                  !result ||
+                  !(result.id || result.ID || result.user_id)
+                ) {
                   this.userSearchResult = null
-                  throw new Error(payload.msg || payload.message || "没有找到匹配用户")
+                  throw new Error(
+                    payload.msg || payload.message || "没有找到匹配用户"
+                  )
                 }
+                result.user_id = this.userId(result)
                 this.userSearchResult = result
               } catch (error) {
-                this.showToast(error.response?.data?.msg || error.message || "用户搜索失败", "error")
+                this.showToast(
+                  error.response?.data?.msg || error.message || "用户搜索失败",
+                  "error"
+                )
               } finally {
                 this.userSearchLoading = false
               }
             },
             async addSearchedUser() {
               if (!this.userSearchResult || this.friendAdding) return
-              const targetId = this.userSearchResult.id || this.userSearchResult.ID
-              if (!targetId || String(targetId) === String(this.session.user.id)) {
+              const targetId = this.userId(this.userSearchResult)
+              if (
+                !targetId ||
+                String(targetId) === String(this.session.user.id)
+              ) {
                 this.showToast("不能添加自己为好友", "error")
                 return
               }
@@ -1633,17 +1853,25 @@
               try {
                 const response = await api.post(
                   "/contact/addFriend",
-                  this.formBody({ user_id: this.session.user.id, target_id: targetId })
+                  this.formBody({
+                    user_id: String(this.session.user.id),
+                    target_id: String(targetId)
+                  })
                 )
                 const payload = response.data || {}
                 if ((payload.code ?? payload.Code) !== 0)
-                  throw new Error(payload.msg || payload.message || "添加好友失败")
+                  throw new Error(
+                    payload.msg || payload.message || "添加好友失败"
+                  )
                 this.showToast("好友添加成功")
                 this.userSearchResult = null
                 this.userSearchKeyword = ""
                 await this.refreshFriends()
               } catch (error) {
-                this.showToast(error.response?.data?.msg || error.message || "添加好友失败", "error")
+                this.showToast(
+                  error.response?.data?.msg || error.message || "添加好友失败",
+                  "error"
+                )
               } finally {
                 this.friendAdding = false
               }
@@ -1655,17 +1883,148 @@
               try {
                 const response = await api.post(
                   "/community/getCommunityList",
-                  this.formBody({ user_id: this.session.user.id })
+                  this.formBody({ user_id: String(this.session.user.id) })
                 )
                 const payload = response.data || {}
                 if ((payload.code ?? payload.Code) !== 0)
-                  throw new Error(payload.msg || payload.message || "群聊加载失败")
+                  throw new Error(
+                    payload.msg || payload.message || "群聊加载失败"
+                  )
                 const list = payload.data ?? payload.Data ?? payload.Rows
                 this.communities = Array.isArray(list) ? list : []
               } catch (error) {
-                this.showToast(error.response?.data?.msg || error.message || "群聊加载失败", "error")
+                this.showToast(
+                  error.response?.data?.msg || error.message || "群聊加载失败",
+                  "error"
+                )
               } finally {
                 this.communityLoading = false
+              }
+            },
+            requestId(item) {
+              return String(item.request_id || item.RequestId || "")
+            },
+            requestIsPending(item) {
+              return Number(item.status ?? item.Status) === 1
+            },
+            requestPersonName(item) {
+              const person =
+                item.requester ||
+                item.Requester ||
+                item.target_user ||
+                item.TargetUser ||
+                item.invite_from ||
+                item.InviteFrom
+              return person?.name || person?.Name || "用户"
+            },
+            requestTitle(item) {
+              const type = Number(item.type ?? item.Type)
+              if (type === 1)
+                return `${this.requestPersonName(item)} 请求添加好友`
+              if (type === 2)
+                return `${this.requestPersonName(item)} 请求加入群聊`
+              if (type === 3) {
+                const communityName =
+                  (item.community || item.Community)?.name ||
+                  (item.community || item.Community)?.Name ||
+                  "群聊"
+                return `${communityName} 邀请你加入`
+              }
+            },
+            requestDescription(item) {
+              const community = item.community || item.Community
+              return (
+                item.message ||
+                item.Message ||
+                community?.name ||
+                community?.Name ||
+                ""
+              )
+            },
+            requestStatusText(item) {
+              const status = Number(item.status ?? item.Status)
+              return status === 1
+                ? "待处理"
+                : status === 2
+                  ? "已接受"
+                  : "已拒绝"
+            },
+            async refreshRequests() {
+              if (!this.session.user) return
+              this.relationLoading = true
+              try {
+                const response = await api.get("/relation/getRelationList", {
+                  params: { user_id: String(this.session.user.id) }
+                })
+                const payload = response.data || {}
+                if ((payload.code ?? payload.Code) !== 0)
+                  throw new Error("申请加载失败")
+                this.relationRequests =
+                  payload.data ?? payload.Data ?? payload.Rows ?? []
+              } catch (error) {
+                this.showToast("申请加载失败", "error")
+                return
+              } finally {
+                this.relationLoading = false
+              }
+            },
+            async openRequests() {
+              this.currentView = "requests"
+              await this.refreshRequests()
+            },
+            async toggleRequest(item, status) {
+              const requestId = this.requestId(item)
+              if (!requestId || this.relationAction) return
+              this.relationAction = requestId
+              try {
+                const response = await api.post(
+                  "/relation/toggleRelationRequest",
+                  this.formBody({
+                    request_id: String(requestId),
+                    status,
+                    user_id: String(this.session.user.id)
+                  })
+                )
+                const payload = response.data || {}
+                if ((payload.code ?? payload.Code) !== 0)
+                  throw new Error(payload.msg || payload.message || "操作失败")
+                this.showToast(status === 2 ? "已接受申请" : "已拒绝申请")
+                await this.refreshRequests()
+                await this.refreshFriends()
+              } catch (error) {
+                this.showToast(
+                  error.response?.data?.msg || error.message || "操作失败",
+                  "error"
+                )
+              } finally {
+                this.relationAction = null
+              }
+            },
+            async inviteCommunity(community) {
+              const targetId = String(this.communityInviteTarget)
+              const communityId = String(
+                community.CommunityId || community.community_id || ""
+              )
+              if (!targetId || !communityId) return
+              try {
+                const response = await api.post(
+                  "/community/inviteCommunity",
+                  this.formBody({
+                    user_id: String(this.session.user.id),
+                    com_id: String(communityId),
+                    target_id: String(targetId)
+                  })
+                )
+                const payload = response.data || {}
+                if ((payload.code ?? payload.Code) !== 0)
+                  throw new Error(payload.msg || payload.message || "邀请失败")
+                this.communityInviteTarget = ""
+                this.showToast("邀请已发送")
+              } catch (error) {
+                this.showToast(
+                  error.response?.data?.msg || error.message || "邀请失败",
+                  "error"
+                )
               }
             },
             async openCommunities() {
@@ -1673,25 +2032,31 @@
               await this.refreshCommunities()
             },
             async createCommunity() {
-              if (!this.communityForm.name.trim() || this.communitySaving) return
+              if (!this.communityForm.name.trim() || this.communitySaving)
+                return
               this.communitySaving = true
               try {
                 const response = await api.post(
                   "/community/createCommunity",
                   this.formBody({
-                    owner_id: this.session.user.id,
+                    owner_id: String(this.session.user.id),
                     name: this.communityForm.name,
                     desc: this.communityForm.desc
                   })
                 )
                 const payload = response.data || {}
                 if ((payload.code ?? payload.Code) !== 0)
-                  throw new Error(payload.msg || payload.message || "创建群聊失败")
+                  throw new Error(
+                    payload.msg || payload.message || "创建群聊失败"
+                  )
                 this.communityForm = { name: "", desc: "" }
                 this.showToast("群聊创建成功")
                 await this.refreshCommunities()
               } catch (error) {
-                this.showToast(error.response?.data?.msg || error.message || "创建群聊失败", "error")
+                this.showToast(
+                  error.response?.data?.msg || error.message || "创建群聊失败",
+                  "error"
+                )
               } finally {
                 this.communitySaving = false
               }
@@ -1703,16 +2068,24 @@
               try {
                 const response = await api.post(
                   "/community/joinCommunity",
-                  this.formBody({ user_id: this.session.user.id, community: keyword })
+                  this.formBody({
+                    user_id: String(this.session.user.id),
+                    community: keyword
+                  })
                 )
                 const payload = response.data || {}
                 if ((payload.code ?? payload.Code) !== 0)
-                  throw new Error(payload.msg || payload.message || "加入群聊失败")
+                  throw new Error(
+                    payload.msg || payload.message || "加入群聊失败"
+                  )
                 this.communityJoinKeyword = ""
                 this.showToast("已加入群聊")
                 await this.refreshCommunities()
               } catch (error) {
-                this.showToast(error.response?.data?.msg || error.message || "加入群聊失败", "error")
+                this.showToast(
+                  error.response?.data?.msg || error.message || "加入群聊失败",
+                  "error"
+                )
               } finally {
                 this.communityJoining = false
               }
@@ -1729,7 +2102,7 @@
               const base = API_ROOT || window.location.origin
               const wsBase = base.replace(/^http/, "ws")
               this.socket = new WebSocket(
-                `${wsBase}/msg/chat?userId=${encodeURIComponent(this.session.user.id)}`
+                `${wsBase}/msg/chat?userId=${encodeURIComponent(String(this.session.user.id))}`
               )
               this.socket.onopen = () => {
                 this.socketConnected = true
@@ -1757,7 +2130,7 @@
                   media,
                   url,
                   mine: false,
-                  targetId: this.selectedUser.ID,
+                  targetId: this.userId(this.selectedUser),
                   time: this.timeNow()
                 })
                 this.scrollMessages()
@@ -1775,8 +2148,8 @@
               const packet = {
                 type: 2,
                 media,
-                fromId: this.session.user.id,
-                targetId: this.selectedUser.ID,
+                fromId: String(this.session.user.id),
+                targetId: this.userId(this.selectedUser),
                 content,
                 url
               }
@@ -1792,7 +2165,7 @@
                 name,
                 url,
                 mine: true,
-                targetId: this.selectedUser.ID,
+                targetId: this.userId(this.selectedUser),
                 time: this.timeNow()
               })
               if (media === 1) this.draft = ""
@@ -1826,7 +2199,7 @@
               await this.refreshUsers()
               // 仅从当前登录用户的记录填充资料表单，不接受好友对象作为编辑目标。
               const person =
-                this.users.find(item => item.ID === this.session.user.id) ||
+                this.users.find(item => this.userId(item) === String(this.session.user.id)) ||
                 this.session.user
               this.memberModal = { visible: true, editing: true, error: "" }
               this.memberForm = {
@@ -1888,7 +2261,7 @@
               try {
                 // 注销仅提交当前会话中的用户 ID，禁止从好友列表传入删除目标。
                 const response = await api.get("/user/deleteUser", {
-                  params: { id: this.session.user.id }
+                  params: { id: String(this.session.user.id) }
                 })
                 if (response.data?.code !== 0)
                   throw new Error(response.data?.message || "注销失败")

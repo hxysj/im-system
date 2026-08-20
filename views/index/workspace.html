@@ -50,13 +50,27 @@
       >
         <span class="nav-icon">群</span><span>群聊</span>
       </button>
+      <button
+        class="nav-button"
+        :class="{ active: currentView === 'requests' }"
+        type="button"
+        @click="openRequests"
+      >
+        <span class="nav-icon">!</span><span>Requests</span>
+        <span v-if="pendingRequestCount" class="nav-badge"
+          >{{ pendingRequestCount }}</span
+        >
+      </button>
       <div class="sidebar-note">
         <strong>实时通道</strong
         ><span>连接到服务端后，消息会通过 WebSocket 即时送达。</span>
       </div>
     </aside>
     <main class="main-panel">
-      <section v-if="currentView === 'friends'" class="workspace-summary">
+      <section
+        v-if="currentView !== 'communities' && currentView !== 'requests'"
+        class="workspace-summary"
+      >
         <div class="page-heading">
           <div>
             <h2>{{ currentView === 'chat' ? '消息中心' : '好友列表' }}</h2>
@@ -100,6 +114,7 @@
         <div id="chat-module"></div>
         <div id="member-module"></div>
         <div id="community-module"></div>
+        <div id="request-module"></div>
       </section>
     </main>
   </div>
