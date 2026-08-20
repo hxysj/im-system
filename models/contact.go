@@ -39,10 +39,10 @@ func SearchFriend(userId string) ([]UserBasic){
 	for _,v := range contacts{
 		userIds = append(userIds, uint64(v.TargetId))
 	}
-	
+
 	users :=  make([]UserBasic,0)
 	// 获取用户详情
-	utils.DB.Where("id in ?",userIds).Find(&users)
+	utils.DB.Where("user_id in ?",userIds).Find(&users)
 
 	return users
 }
@@ -51,12 +51,12 @@ func SearchFriend(userId string) ([]UserBasic){
 func AddFriend(userId uint,targetId uint) int{
 	user := FindUserById(int(userId))
 
-	if targetId != 0 && user.Salt != ""{
+	if targetId != 0 && user.UserId != 0{
 		contact := Contact{}
-		
+
 		utils.DB.Where("owen_id = ? and target_id = ? and type = 1",userId,targetId).Find(&contact)
 
-		if contact.ID != 0{
+		if contact.ContactId != 0{
 			return 0
 		}
 
@@ -73,7 +73,7 @@ func AddFriend(userId uint,targetId uint) int{
 		contact.TargetId = targetId
 		contact.Type = 1
 		contact.ContactId = utils.NextId()
-		if err := utils.DB.Create(&contact).Error; err != nil{
+		if err := tx.Create(&contact).Error; err != nil{
 			tx.Rollback()  //回滚数据库
 			return 0
 		}
@@ -83,7 +83,7 @@ func AddFriend(userId uint,targetId uint) int{
 		owner_contact.TargetId = userId
 		owner_contact.Type = 1
 		owner_contact.ContactId = utils.NextId()
-		utils.DB.Create(&owner_contact)
+		tx.Create(&owner_contact)
 		// 两个操作都成功了之后才提交
 		tx.Commit()
 		return 1

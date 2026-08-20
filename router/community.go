@@ -10,6 +10,6 @@ func RegisterCommunityRoutes(r *gin.Engine){
 	{
 		community.POST("/createCommunity",service.CreateCommunity)
 		community.POST("/getCommunityList",service.LoadCommunity)
-		community.POST("/joinCommunity",service.JoinGroups)
+		community.POST("/joinCommunity",service.CreateCommunityRelation)
 	}
 }

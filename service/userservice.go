@@ -113,7 +113,7 @@ func CreateUser(ctx *gin.Context){
 func DeleteUser(ctx *gin.Context){
 	user := models.UserBasic{}
 	id,_ := strconv.Atoi(ctx.Query("id"))
-	user.ID = uint(id)
+	user.UserId = int64(id)
 	models.DeleteUser(user)
 	ctx.JSON(200,gin.H{
 		"code":0,
@@ -151,7 +151,7 @@ func UpdateUser(ctx *gin.Context){
 		})
 	}
 
-	user.ID = uint(id)
+	user.UserId = int64(id)
 	user.Name = name
 	user.Password = utils.MakePassword(password,res.Salt)
 	user.Phone = phone
@@ -210,19 +210,25 @@ func Login(ctx *gin.Context){
 	// 登录成功后生成token
 	str := fmt.Sprintf("%d",time.Now().Unix())
 	temp := utils.MD5Encode(str)
-	utils.DB.Model(&res).Where("id = ?",res.ID).Update("identity",temp)
+	utils.DB.Model(&res).Where("user_id = ?",res.ID).Update("identity",temp)
 
-	ctx.JSON(200,gin.H{
-		"message":"登录成功！",
-		"data":gin.H{
-			"code":0,
-			"message":"登录成功！",
-			"data":gin.H{
-				"token":res.Identity,
-				"id":res.ID,
-			},
-			},
-	})
+	type LoginResult struct{
+		Token string `json:"token"`
+		UserId int `json:"user_id"`
+		Name string `json:"name"`
+		Phone string `json:"phone"`
+		Email string `json:"email"`
+	}
+
+	result := LoginResult{
+		Token: res.Identity,
+		UserId: int(res.UserId),
+		Name: res.Name,
+		Phone: res.Phone,
+		Email: res.Email,
+	}
+
+	utils.RespOk(ctx.Writer,result,"登录成功！")
 }
 
 

@@ -20,7 +20,7 @@ func CreateCommunity(community *Community)(int,string){
 	if len(community.Name) == 0{
 		return -1,"群名称不能为空"
 	}
-	
+
 	if community.OwnerId == 0{
 		return -1,"请先登录"
 	}
@@ -33,7 +33,7 @@ func CreateCommunity(community *Community)(int,string){
 
 func LoadCommunity(owner_id uint)(int, []*Community,string){
 	data := make([]*Community,0)
-	
+
 	utils.DB.Where("owner_id = ?",owner_id).Find(&data)
 
 	return 0,data,"查询成功"
@@ -46,7 +46,7 @@ func JoinGroups(userId uint,com string)(int,string){
 
 	community := Community{}
 
-	utils.DB.Where("id = ? or name = ? ",com,com).Find(&community)
+	utils.DB.Where("community_id = ? or name = ? ",com,com).Find(&community)
 	if community.Name == ""{
 		return -1,"群聊不存在"
 	}

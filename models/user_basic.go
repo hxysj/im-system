@@ -36,7 +36,7 @@ func GetUserList() []UserBasic{
 
 func FindUserById(id int) UserBasic{
 	user := UserBasic{}
-	utils.DB.Where("id = ?",id).First(&user)
+	utils.DB.Where("user_id = ?",id).First(&user)
 	return user
 }
 

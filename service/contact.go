@@ -33,16 +33,15 @@ func SearchFriends(ctx *gin.Context){
 // @Success 200 {string} json{"code","message"}
 // @Router /contact/addFriend
 func AddFriend(ctx *gin.Context){
-	
 	user_id,_ := strconv.Atoi(ctx.PostForm("user_id"))
 	target_id,_ := strconv.Atoi(ctx.PostForm("target_id"))
 
-	result := models.AddFriend(uint(user_id),uint(target_id))
-
-	if user_id == target_id {
+	if user_id == target_id{
 		utils.RespFail(ctx.Writer,"添加失败")
 		return
 	}
+
+	result := models.AddFriend(uint(user_id),uint(target_id))
 
 	if result != 0{
 		utils.RespOk(ctx.Writer,nil,"添加成功")
