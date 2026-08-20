@@ -70,7 +70,7 @@ func DeleteUser(user UserBasic) *gorm.DB{
 
 // 更新用户信息
 func UpdateUser(user UserBasic) *gorm.DB{
-	return utils.DB.Model(&user).Updates(UserBasic{Name: user.Name,Password: user.Password,Phone: user.Phone,Email: user.Email,Identity: user.Identity})
+	return utils.DB.Model(&user).Updates(UserBasic{Name: user.Name,Phone: user.Phone,Email: user.Email,Identity: user.Identity})
 }
 
 // 通过手机号或者名称搜索用户
@@ -78,4 +78,28 @@ func FindUserByPhoneOrNameOrEmail(key string) UserBasic{
 	user := UserBasic{}
 	utils.DB.Where("name = ? or phone = ? or email = ?",key,key,key).First(&user)
 	return user
+}
+
+// 修改用户密码
+func UpdateUserPassword(user_id int64,oldPassword string, newPassword string) (int,string){
+	
+	user := FindUserById(int(user_id))
+
+	oldPwd := utils.MakePassword(oldPassword,user.Salt)
+
+	if oldPwd != user.Password {
+		return -1,"密码错误"
+	}
+
+	newPwd := utils.MakePassword(newPassword,user.Salt)
+
+	if newPwd == user.Password{
+		return -1,"新密码不能与旧密码一样"
+	}
+	
+	if err := utils.DB.Model(&user).Update("password",newPwd); err != nil{
+		return -1, "修改失败"
+	}
+	
+	return 0,"修改成功"
 }

@@ -42,7 +42,7 @@ type RelationRequestItem struct {
 
 
 // 获取申请记录
-func GetRelationRequestList (user_id int64) ([]RelationRequest,error){
+func GetRelationRequestList (user_id int64) ([]RelationRequestItem,error){
 	var communities []Community
 
 	if err := utils.DB.Where("owner_id = ?",user_id).Find(&communities).Error;err != nil{
@@ -82,10 +82,10 @@ func GetRelationRequestList (user_id int64) ([]RelationRequest,error){
 		switch request.Type{
 		case 1:
 			// 记录下要申请添加好友的id
-			userIdSet[request.RequestId] = struct{}{}
+			userIdSet[request.RequesterId] = struct{}{}
 		case 2:
 			// 记录下申请入群的用户id
-			userIdSet[request.RequestId] = struct{}{}
+			userIdSet[request.RequesterId] = struct{}{}
 			// 记录下申请群的群id
 			communityIdSet[request.TargetId] = struct{}{}
 		case 3:
@@ -168,7 +168,7 @@ func GetRelationRequestList (user_id int64) ([]RelationRequest,error){
 		result = append(result, item)
 	}
 
-	return requests,nil
+	return result,nil
 }
 
 // 创建记录

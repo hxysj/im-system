@@ -23,7 +23,15 @@ func (table *Contact) TableName() string{
 	return "contact"
 }
 
-func SearchFriend(userId string) ([]UserBasic){
+type SearchFriendResult struct {
+	UserId int64 `json:"user_id"`
+	Name string `json:"name"`
+	Phone string `json:"phone"`
+	Email string `json:"email"`
+}
+
+
+func SearchFriend(userId string) ([]SearchFriendResult){
 
 	contacts := make([]Contact,0)
 	userIds := make([]uint64,0)
@@ -40,9 +48,9 @@ func SearchFriend(userId string) ([]UserBasic){
 		userIds = append(userIds, uint64(v.TargetId))
 	}
 
-	users :=  make([]UserBasic,0)
+	users :=  make([]SearchFriendResult,0)
 	// 获取用户详情
-	utils.DB.Where("user_id in ?",userIds).Find(&users)
+	utils.DB.Model(&UserBasic{}).Select("user_id,name,phone,email").Where("user_id in ?",userIds).Find(&users)
 
 	return users
 }

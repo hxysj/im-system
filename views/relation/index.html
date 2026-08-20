@@ -1,0 +1,53 @@
+<section v-if="currentView === 'requests'" class="request-panel">
+  <div class="request-toolbar">
+    <div>
+      <p class="section-kicker">RELATION</p>
+      <h2>申请中心</h2>
+      <p class="section-description">处理好友申请、加群申请和群聊邀请。</p>
+    </div>
+    <button
+      class="ghost-button"
+      type="button"
+      @click="refreshRequests"
+      :disabled="relationLoading"
+    >
+      刷新
+    </button>
+  </div>
+  <div v-if="relationLoading" class="table-empty">正在加载申请...</div>
+  <div v-else-if="!relationRequests.length" class="community-empty">
+    <strong>暂无申请</strong><span>新的申请会显示在这里。</span>
+  </div>
+  <div v-else class="request-list">
+    <article
+      v-for="item in relationRequests"
+      :key="item.request_id || item.RequestId"
+      class="request-card"
+    >
+      <div class="avatar">{{ initials(requestPersonName(item)) }}</div>
+      <div class="request-copy">
+        <strong>{{ requestTitle(item) }}</strong>
+        <span>{{ requestDescription(item) }}</span>
+        <small>{{ requestStatusText(item) }}</small>
+      </div>
+      <div v-if="requestIsPending(item)" class="table-actions">
+        <button
+          class="primary-button request-action"
+          type="button"
+          :disabled="relationAction === requestId(item)"
+          @click="toggleRequest(item, 2)"
+        >
+          接受
+        </button>
+        <button
+          class="danger-button"
+          type="button"
+          :disabled="relationAction === requestId(item)"
+          @click="toggleRequest(item, 3)"
+        >
+          拒绝
+        </button>
+      </div>
+    </article>
+  </div>
+</section>
