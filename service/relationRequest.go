@@ -53,7 +53,7 @@ func CreateFriendRelation(ctx *gin.Context){
 	target_id,_ := strconv.Atoi(ctx.PostForm("target_id"))
 	desc := ctx.PostForm("context")
 
-	code,msg := models.CreateRelationRequest(int64(user_id),int64(target_id),desc,1)
+	code,msg := models.CreateRelationRequest(int64(user_id),int64(target_id),desc,1,-1)
 
 	if code == -1{
 		utils.RespFail(ctx.Writer,msg)
@@ -68,7 +68,27 @@ func CreateCommunityRelation(ctx *gin.Context){
 	target_id,_ := strconv.Atoi(ctx.PostForm("target_id"))
 	desc := ctx.PostForm("context")
 
-	code,msg := models.CreateRelationRequest(int64(user_id),int64(target_id),desc,2)
+	code,msg := models.CreateRelationRequest(int64(user_id),int64(target_id),desc,2,-1)
+
+	if code == -1{
+		utils.RespFail(ctx.Writer,msg)
+	}else{
+		utils.RespOk(ctx.Writer,nil,msg)
+	}
+}
+
+// 要求好友进入群聊
+func InviteCommunity(ctx *gin.Context){
+	user_id,_ := strconv.Atoi(ctx.PostForm("user_id"))
+	com_id,_ := strconv.Atoi(ctx.PostForm("com_id"))
+	target_id,_ := strconv.Atoi(ctx.PostForm("target_id"))
+
+	if user_id == 0 || com_id == 0 || target_id == 0{
+		utils.RespFail(ctx.Writer,"参数有误")
+		return
+	}
+
+	code,msg := models.CreateRelationRequest(int64(target_id),int64(com_id),"",3,int64(user_id))
 
 	if code == -1{
 		utils.RespFail(ctx.Writer,msg)
