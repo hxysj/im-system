@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/fatih/set"
 	"github.com/gorilla/websocket"
+	"github.com/hxysj/im-system/utils"
 	"gorm.io/gorm"
 )
 
@@ -35,6 +37,7 @@ type Node struct{
 	Conn *websocket.Conn
 	DataQueue chan []byte
 	GroupSets set.Interface
+	Done chan struct{}
 }
 
 // 客户端的映射表
@@ -49,7 +52,7 @@ func Chat(writer http.ResponseWriter,request *http.Request){
 	query := request.URL.Query()
 	// 校验token
 	// token := query.Get("token")
-	userId,_ := strconv.ParseInt(query.Get("userId"),10,36)
+	userId,err := strconv.Atoi(query.Get("userId"))
 	// 第一个参数 s：要解析的字符串（query.Get("userId") 返回的字符串）
 	// 第二个参数 base：进制数（这里是 0，表示自动检测进制）
 	// 第三个参数 bitSize：结果类型（36 表示要解析成 int64 类型）
@@ -57,12 +60,17 @@ func Chat(writer http.ResponseWriter,request *http.Request){
 	// targetId := query.Get("targetId")
 	// context := query.Get("context")
 
+	if err !=nil || userId == 0 {
+		return
+	}
+
 	isValid := true
 
 	// coon 是websocket的连接
 	coon,err := (&websocket.Upgrader{  //创建一个 Upgrader 实例（取地址）
 		// token 校验 配置跨域检查
 		CheckOrigin: func(r *http.Request) bool{
+			// 是否允许跨域
 			return isValid
 		},
 	}).Upgrade(writer,request,nil) // 调用 Upgrade 方法，升级连接
@@ -77,30 +85,63 @@ func Chat(writer http.ResponseWriter,request *http.Request){
 		Conn: coon,
 		DataQueue: make(chan []byte,50),   //消息队列（缓冲区 50）	异步发送消息的通道
 		GroupSets: set.New(set.ThreadSafe), //群组集合（线程安全）	记录该用户加入了哪些群聊
-
+		Done: make(chan struct{}),
 	}
-
-	// 用户关系
+	// 设置心跳机制的超时时间
+	pongWait := 60 * time.Second
+	// 收到pong响应后重置超时计时器
+	node.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	// 实现心跳检测：确保连接任然活跃
+	node.Conn.SetPongHandler(func(string) error{
+		node.Conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
 
 	// userId 和 node 绑定
+
+	// 查找是否有旧连接存在
 	rwLocker.Lock()
-	clientMap[userId] = node
+
+	oldNode := clientMap[int64(userId)]
+
+	clientMap[int64(userId)] = node
+
 	rwLocker.Unlock()
 
-	// 发送消息的逻辑
-	go sendProc(node)
-	// 接收消息的逻辑
-	go recvProc(node)
+	if oldNode != nil{
+		oldNode.Conn.Close()
+	}
 
-	sendMsg(userId,[]byte("欢迎进入im-system系统的聊天室！"))
+	// 发送消息的逻辑
+	go sendProc(int64(userId),node)
+	// 接收消息的逻辑
+	go recvProc(int64(userId),node)
+
+	sendMsg(int64(userId),[]byte("欢迎进入im-system系统的聊天室！"))
 }
 
 
-// 发送消息
-func sendProc(node *Node){
+// 发送消息 - 负责将客户端获取的消息发送到对应的目标上去
+func sendProc(userId int64,node *Node){
+	// 心跳检测的逻辑
+	// 没30秒发送一次Ping帧
+	ticker := time.NewTicker(30*time.Second)
+	defer ticker.Stop()
 	// 无限循环，支持处理消息
 	for {
 		select{
+		case <-ticker.C:
+			// 发送Ping消息
+			err := node.Conn.WriteControl(
+				websocket.PingMessage,
+				nil,
+				time.Now().Add(10 * time.Second),
+			)
+			// 心跳机制检测失败了 - 关闭连接
+			if err != nil{
+				_ = node.Conn.Close()
+				return
+			}
 		// 监听到消息队列的数据发送变化的时候触发取出
 		case data:= <-node.DataQueue:
 			fmt.Println("[send]<<<<<  ",string(data))
@@ -108,19 +149,51 @@ func sendProc(node *Node){
 			err := node.Conn.WriteMessage(websocket.TextMessage,data)
 			if err !=nil {
 				fmt.Println(err)
+				node.Conn.Close()
 				return
 			}
+		case <-node.Done:
+			// 收到连接被关闭的时候退出这个节点的监听
+			return
+	
 		}
 	}
 }
 
 // 接收消息 -负责从 WebSocket 连接中读取客户端发来的消息
-func recvProc(node *Node){
+func recvProc(userId int64,node *Node){
+	// 监听客户端消息退出的时候触发
+	defer func(){
+		// 触发关闭websocket连接
+		node.Conn.Close()
+		close(node.Done)
+		// 上锁
+		rwLocker.Lock()
+		// 将clientMap中对应的数据删除
+		if current,ok := clientMap[userId];ok && current == node{
+			delete(clientMap,userId)
+		}
+		// 解锁
+		rwLocker.Unlock()
+	}()
+
 	for{
 		// websocket读取接收到的消息
 		_,data,err := node.Conn.ReadMessage() //忽略消息类型，只取数据内容和错误
 		if err != nil{
-			fmt.Println(err)
+			// 客户端发送 ws.Close()的时候会触发
+			//IsUnexpectedCloseError 判断Websocket关闭错误是否属于意外情况
+			if websocket.IsUnexpectedCloseError(
+				err,
+				//状态码 1000 正常关闭
+				websocket.CloseNormalClosure,
+				//状态码  1001  浏览器或客户端离开
+				websocket.CloseGoingAway,
+			){
+				fmt.Println("WebSocket异常断开：",err)
+			}else{
+				fmt.Println("WebSocket连接关闭",err)
+			}
 			return
 		}
 		broadMsg(data)  //广播消息
@@ -207,8 +280,15 @@ func dispatch(data []byte){
 	fmt.Println("[dispatch] >>> ",msg.TargetId,string(data))
 	// 将消息存储到数据库中
 
+	msg.MessageId = utils.NextId()
+
+	if err := utils.DB.Create(&msg).Error;err != nil{
+		fmt.Print("保存消息失败：",err)
+		return
+	}
+
 	switch msg.Type{
-	// 检测消息类型是1的
+	// 检测消息类型是2的 - 私聊
 	case 2:
 		sendMsg(msg.TargetId,data)
 	}

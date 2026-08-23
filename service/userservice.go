@@ -207,12 +207,12 @@ func Login(ctx *gin.Context){
 	// 登录成功后生成token
 	str := fmt.Sprintf("%d",time.Now().Unix())
 	temp := utils.MD5Encode(str)
-	nowTime := time.Now()	
-	if err := utils.DB.Model(&res).Where("user_id = ?",res.ID).
+	nowTime := time.Now().Unix()
+	if err := utils.DB.Model(&res).Where("user_id = ?",res.UserId).
 	Updates(map[string]interface{}{
 		"identity":temp,
-		"login_time":nowTime,
-	});err != nil{
+		"login_time":uint64(nowTime),
+	}).Error;err != nil{
 		utils.RespFail(ctx.Writer,"登录失败！")
 		return
 	}
