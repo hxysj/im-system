@@ -1559,6 +1559,21 @@
         // 统一封装请求地址与表单编码，保持 Go 服务端 PostForm 接收方式不变。
         const API_ROOT = window.__IM_API_ROOT__ || "http://localhost:8080"
         const api = axios.create({ baseURL: API_ROOT, timeout: 8000 })
+        api.interceptors.request.use(config => {
+          // 每次请求从会话存储读取最新 token，避免刷新页面后丢失认证头。
+          const cachedSession = sessionStorage.getItem("im-session")
+          if (cachedSession) {
+            try {
+              const session = JSON.parse(cachedSession)
+              if (session.token) {
+                config.headers.Authorization = `Bearer ${session.token}`
+              }
+            } catch (error) {
+              sessionStorage.removeItem("im-session")
+            }
+          }
+          return config
+        })
         api.interceptors.response.use(
           response => response,
           error => Promise.reject(error)
@@ -2196,12 +2211,15 @@
               this.connectSocket()
             },
             connectSocket() {
-              if (!this.selectedUser || !this.session.user) return
+              if (!this.selectedUser || !this.session.user || !this.session.token) return
               if (this.socket) this.socket.close()
               const base = API_ROOT || window.location.origin
               const wsBase = base.replace(/^http/, "ws")
+              // 原生 WebSocket 不能复用 Axios 请求头，Token 通过查询参数交给鉴权中间件。
+              const userId = encodeURIComponent(String(this.session.user.id))
+              const token = encodeURIComponent(this.session.token)
               this.socket = new WebSocket(
-                `${wsBase}/msg/chat?userId=${encodeURIComponent(String(this.session.user.id))}`
+                `${wsBase}/msg/chat?userId=${userId}&token=${token}`
               )
               this.socket.onopen = () => {
                 this.socketConnected = true
@@ -2247,8 +2265,8 @@
               const packet = {
                 type: 2,
                 media,
-                fromId: String(this.session.user.id),
-                targetId: this.userId(this.selectedUser),
+                fromId: Number(this.session.user.id),
+                targetId: Number(this.userId(this.selectedUser)),
                 content,
                 url
               }
@@ -2283,16 +2301,36 @@
                 if (node) node.scrollTop = node.scrollHeight
               })
             },
-            logout() {
-              if (this.socket) this.socket.close()
-              sessionStorage.removeItem("im-session")
-              this.session = { user: null, token: "" }
-              this.users = []
-              this.friends = []
-              this.communities = []
-              this.userSearchResult = null
-              this.selectedUser = null
-              this.messages = []
+            async logout() {
+              let message = "退出登录成功"
+              let type = "success"
+              try {
+                if (this.session.token) {
+                  const response = await api.post("/user/loginOut")
+                  const body = response.data || {}
+                  if ((body.code ?? body.Code) !== 0) {
+                    throw new Error(body.msg || body.message || "退出登录失败")
+                  }
+                }
+              } catch (error) {
+                message =
+                  error.response?.data?.msg ||
+                  error.response?.data?.message ||
+                  error.message ||
+                  "退出登录失败"
+                type = "error"
+              } finally {
+                if (this.socket) this.socket.close()
+                sessionStorage.removeItem("im-session")
+                this.session = { user: null, token: "" }
+                this.users = []
+                this.friends = []
+                this.communities = []
+                this.userSearchResult = null
+                this.selectedUser = null
+                this.messages = []
+                this.showToast(message, type)
+              }
             },
             async openEditProfile() {
               await this.refreshUsers()

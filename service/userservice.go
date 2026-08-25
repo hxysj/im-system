@@ -17,17 +17,16 @@ import (
 // @Tags 用户模块
 // @Success 200 {string} json{"code","message"}
 // @Router /user/getUserList [get]
-func GetUserList(ctx *gin.Context){
-	data := make([]models.UserBasic,10)
+func GetUserList(ctx *gin.Context) {
+	data := make([]models.UserBasic, 10)
 	data = models.GetUserList()
 
-	ctx.JSON(200,gin.H{
-		"code":0,
-		"message":data,
+	ctx.JSON(200, gin.H{
+		"code":    0,
+		"message": data,
 	})
 
 }
-
 
 // CreateUser
 // Summary 新增用户
@@ -37,69 +36,69 @@ func GetUserList(ctx *gin.Context){
 // @param repassword formData string false "确认密码"
 // @Success 200 {string} json{"code","message"}
 // @Router /user/register [Post]
-func CreateUser(ctx *gin.Context){
+func CreateUser(ctx *gin.Context) {
 	user := models.UserBasic{}
 	user.Name = ctx.PostForm("name")
 	password := ctx.PostForm("password")
 	repassword := ctx.PostForm("repassword")
 
-	if password == "" || user.Name == ""{
-		ctx.JSON(200,gin.H{
-			"code":-1,
-			"message":"用户名或密码不能为空！",
+	if password == "" || user.Name == "" {
+		ctx.JSON(200, gin.H{
+			"code":    -1,
+			"message": "用户名或密码不能为空！",
 		})
 		return
 	}
 
-	salt := fmt.Sprintf("%06d",rand.Int31())
+	salt := fmt.Sprintf("%06d", rand.Int31())
 
 	res := models.FindUserByName(user.Name)
 
 	if res.Name != "" {
-		ctx.JSON(200,gin.H{
-			"code":-1,
-			"message":"用户名已被占用！",
+		ctx.JSON(200, gin.H{
+			"code":    -1,
+			"message": "用户名已被占用！",
 		})
 		return
 	}
 
 	res = models.FindUserByPhone(user.Phone)
 
-	if res.Name != "" && user.Phone != ""{
-		ctx.JSON(200,gin.H{
-			"code":-1,
-			"message":"手机号码已被占用！",
+	if res.Name != "" && user.Phone != "" {
+		ctx.JSON(200, gin.H{
+			"code":    -1,
+			"message": "手机号码已被占用！",
 		})
 		return
 	}
 
 	res = models.FindUserByEmail(user.Email)
 
-	if res.Name != "" && user.Email != ""{
-		ctx.JSON(200,gin.H{
-			"code":-1,
-			"message":"邮箱已被占用！",
+	if res.Name != "" && user.Email != "" {
+		ctx.JSON(200, gin.H{
+			"code":    -1,
+			"message": "邮箱已被占用！",
 		})
 		return
 	}
 
-	if password != repassword{
-		ctx.JSON(200,gin.H{
-			"code":-1,
-			"message":"两次密码不一致！",
+	if password != repassword {
+		ctx.JSON(200, gin.H{
+			"code":    -1,
+			"message": "两次密码不一致！",
 		})
 		return
 	}
 
-	user.Password = utils.MakePassword(password,salt)
-	user.Salt =salt
+	user.Password = utils.MakePassword(password, salt)
+	user.Salt = salt
 	user.UserId = utils.NextId()
 
 	models.CreateUser(user)
 
-	ctx.JSON(200,gin.H{
-		"code":0,
-		"message":"新增用户成功！",
+	ctx.JSON(200, gin.H{
+		"code":    0,
+		"message": "新增用户成功！",
 	})
 
 }
@@ -110,16 +109,16 @@ func CreateUser(ctx *gin.Context){
 // @param id query string false "用户id"
 // @Success 200 {string} json{"code","message"}
 // @Router /user/deleteUser [get]
-func DeleteUser(ctx *gin.Context){
+func DeleteUser(ctx *gin.Context) {
 	user := models.UserBasic{}
-	id,_ := strconv.Atoi(ctx.Query("id"))
+	id, _ := strconv.Atoi(ctx.Query("id"))
 	user.UserId = int64(id)
-	code,msg := models.DeleteUser(user)
+	code, msg := models.DeleteUser(user)
 
-	if code == -1{
-		utils.RespFail(ctx.Writer,msg)
-	}else{
-		utils.RespOk(ctx.Writer,nil,msg)
+	if code == -1 {
+		utils.RespFail(ctx.Writer, msg)
+	} else {
+		utils.RespOk(ctx.Writer, nil, msg)
 	}
 }
 
@@ -133,9 +132,9 @@ func DeleteUser(ctx *gin.Context){
 // @param identity formData string false "性别"
 // @Success 200 {string} json{"code","message"}
 // @Router /user/update [post]
-func UpdateUser(ctx *gin.Context){
+func UpdateUser(ctx *gin.Context) {
 	user := models.UserBasic{}
-	id,_ := strconv.Atoi(ctx.PostForm("id"))
+	id, _ := strconv.Atoi(ctx.PostForm("id"))
 	// 获取post请求的参数
 	name := ctx.PostForm("name")
 	phone := ctx.PostForm("phone")
@@ -144,10 +143,10 @@ func UpdateUser(ctx *gin.Context){
 
 	res := models.FindUserById(id)
 
-	if res.UserId == 0{
-		ctx.JSON(200,gin.H{
-			"code":-1,
-			"message":"用户不存在！",
+	if res.UserId == 0 {
+		ctx.JSON(200, gin.H{
+			"code":    -1,
+			"message": "用户不存在！",
 		})
 		return
 	}
@@ -158,24 +157,23 @@ func UpdateUser(ctx *gin.Context){
 	user.Email = email
 	user.Identity = identity
 	// 校验用户信息 - 邮箱和电话号码
-	_,err := govalidator.ValidateStruct(user)
-	if err != nil{
+	_, err := govalidator.ValidateStruct(user)
+	if err != nil {
 		fmt.Println(err)
-		ctx.JSON(200,gin.H{
-			"code":-1,
-			"message":"修改参数不匹配",
+		ctx.JSON(200, gin.H{
+			"code":    -1,
+			"message": "修改参数不匹配",
 		})
 		return
 	}
 
 	models.UpdateUser(user)
 
-	ctx.JSON(200,gin.H{
-		"code":0,
-		"message":"更新用户数据成功!",
+	ctx.JSON(200, gin.H{
+		"code":    0,
+		"message": "更新用户数据成功!",
 	})
 }
-
 
 // Login
 // Summary 登录
@@ -184,104 +182,134 @@ func UpdateUser(ctx *gin.Context){
 // @param password formData string false "密码"
 // @Success 200 { string } json {"code","message","data"}
 // @Router /user/login [post]
-func Login(ctx *gin.Context){
+func Login(ctx *gin.Context) {
 	name := ctx.PostForm("name")
 	password := ctx.PostForm("password")
 
 	res := models.FindUserByName(name)
-	if res.Name == ""{
-		ctx.JSON(200,gin.H{
-			"code":0,
-			"message":"登录失败！",
+	if res.Name == "" {
+		ctx.JSON(200, gin.H{
+			"code":    0,
+			"message": "登录失败！",
 		})
 		return
 	}
 
-	validResult := utils.ValidPassword(password,res.Salt,res.Password)
+	validResult := utils.ValidPassword(password, res.Salt, res.Password)
 
-	if !validResult{
-		ctx.JSON(200,gin.H{
-			"code":-1,
-			"message":"登录失败!",
+	if !validResult {
+		ctx.JSON(200, gin.H{
+			"code":    -1,
+			"message": "登录失败!",
 		})
 		return
 	}
 
-	// 登录成功后生成token
-	str := fmt.Sprintf("%d",time.Now().Unix())
-	temp := utils.MD5Encode(str)
 	nowTime := time.Now().Unix()
-	if err := utils.DB.Model(&res).Where("user_id = ?",res.UserId).
-	Updates(map[string]interface{}{
-		"identity":temp,
-		"login_time":uint64(nowTime),
-	}).Error;err != nil{
-		utils.RespFail(ctx.Writer,"登录失败！")
+	if err := utils.DB.Model(&res).Where("user_id = ?", res.UserId).
+		Updates(map[string]interface{}{
+			"login_time": uint64(nowTime),
+		}).Error; err != nil {
+		utils.RespFail(ctx.Writer, "登录失败！")
 		return
 	}
 
-	type LoginResult struct{
-		Token string `json:"token"`
-		UserId int `json:"user_id"`
-		Name string `json:"name"`
-		Phone string `json:"phone"`
-		Email string `json:"email"`
+	token, err := utils.GenerateToken(ctx, res.UserId)
+
+	if err != nil {
+		fmt.Println(err)
+		utils.RespFail(ctx.Writer, "登录失败！")
+		return
+	}
+
+	type LoginResult struct {
+		Token  string `json:"token"`
+		UserId int    `json:"user_id"`
+		Name   string `json:"name"`
+		Phone  string `json:"phone"`
+		Email  string `json:"email"`
 	}
 
 	result := LoginResult{
-		Token: temp,
+		Token:  token,
 		UserId: int(res.UserId),
-		Name: res.Name,
-		Phone: res.Phone,
-		Email: res.Email,
+		Name:   res.Name,
+		Phone:  res.Phone,
+		Email:  res.Email,
 	}
 
-	utils.RespOk(ctx.Writer,result,"登录成功！")
+	utils.RespOk(ctx.Writer, result, "登录成功！")
 }
 
-
 // 搜索用户 - 根据手机号或者用户名称
-func SearchUser(ctx *gin.Context){
+func SearchUser(ctx *gin.Context) {
 	search := ctx.PostForm("keyword")
 
-	if search == ""{
-		utils.RespFail(ctx.Writer,"不能输入空的内容")
+	if search == "" {
+		utils.RespFail(ctx.Writer, "不能输入空的内容")
 		return
 	}
 
 	res := models.FindUserByPhoneOrNameOrEmail(search)
-	type UserData struct{
-		UserId int64 `json:"user_id"`
-		Name string `json:"name"`
-		Phone string `json:"phone"`
-		Email string `json:"email"`
+	type UserData struct {
+		UserId int64  `json:"user_id"`
+		Name   string `json:"name"`
+		Phone  string `json:"phone"`
+		Email  string `json:"email"`
 	}
 	data := UserData{
-		UserId:res.UserId,
-		Name:res.Name,
-		Phone:res.Phone,
-		Email:res.Email,
+		UserId: res.UserId,
+		Name:   res.Name,
+		Phone:  res.Phone,
+		Email:  res.Email,
 	}
-	utils.RespOk(ctx.Writer,data,"")
+	utils.RespOk(ctx.Writer, data, "")
 }
 
 // 修改密码
-func UpdatePassword(ctx *gin.Context){
-	user_id,_ := strconv.Atoi(ctx.PostForm("user_id"))
+func UpdatePassword(ctx *gin.Context) {
+	user_id, _ := strconv.Atoi(ctx.PostForm("user_id"))
 	oldPassword := ctx.PostForm("old_password")
 	newPassword := ctx.PostForm("new_password")
 	reNewPassword := ctx.PostForm("re_new_password")
 
-	if newPassword != reNewPassword{
-		utils.RespFail(ctx.Writer,"两次密码不一致")
+	if newPassword != reNewPassword {
+		utils.RespFail(ctx.Writer, "两次密码不一致")
 		return
 	}
 
-	code,msg := models.UpdateUserPassword(int64(user_id),oldPassword,newPassword)
+	code, msg := models.UpdateUserPassword(int64(user_id), oldPassword, newPassword)
 
-	if code == -1{
-		utils.RespFail(ctx.Writer,msg)
-	}else{
-		utils.RespOk(ctx.Writer,nil,"修改成功！")
+	if code == -1 {
+		utils.RespFail(ctx.Writer, msg)
+	} else {
+		utils.RespOk(ctx.Writer, nil, "修改成功！")
 	}
+}
+
+// 退出登录
+func LoginOut(ctx *gin.Context) {
+	userID := ctx.GetInt64("current_user_id")
+	token := ctx.GetString("current_token_id")
+
+	user := models.FindUserById(int(userID))
+
+	if user.Salt == "" {
+		utils.RespFail(ctx.Writer, "参数有误")
+		return
+	}
+	nowTime := time.Now().Unix()
+	if err := utils.DB.Model(&models.UserBasic{}).Where("user_id = ?", userID).Update("login_out_time", nowTime).Error; err != nil {
+		fmt.Println(err)
+		utils.RespFail(ctx.Writer, "退出登录失败！")
+		return
+	}
+
+	err := utils.RevokeToken(ctx, user.UserId, token)
+	if err != nil {
+		fmt.Println(err)
+		utils.RespFail(ctx.Writer, "退出登录失败！")
+		return
+	}
+	utils.RespOk(ctx.Writer, nil, "退出登录成功！")
 }
