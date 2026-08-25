@@ -3,6 +3,7 @@ package router
 import (
 	"github.com/gin-gonic/gin"
 	docs "github.com/hxysj/im-system/docs"
+	"github.com/hxysj/im-system/middleware"
 	"github.com/hxysj/im-system/service"
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -20,19 +21,23 @@ func Router() *gin.Engine {
 
 	// 首页模块
 	r.GET("/index", service.GetIndex)
-
+	protected := r.Group("")
+	protected.Use(middleware.AuthRequired())
+	RegisterPublicUserRoutes(r)
 	// 注册用户模块
-	RegisterUserRoutes(r)
+	RegisterUserRoutes(protected)
 	// 注册消息模块
-	RegisterMessageRoutes(r)
+	RegisterMessageRoutes(protected)
 	// 注册关系模块
-	RegisterContactRoutes(r)
+	RegisterContactRoutes(protected)
 	// 注册上传模块
-	RegisterAttachRoutes(r)
+	RegisterAttachRoutes(protected)
 	// 注册群聊模块
-	RegisterCommunityRoutes(r)
+	RegisterCommunityRoutes(protected)
 	// 注册申请模块
-	RegisterRelationRequest(r)
+	RegisterRelationRequest(protected)
 
+	// 建立websocket连接
+	r.GET("/msg/chat", middleware.WebSocketAuthRequired(), service.Chat)
 	return r
 }

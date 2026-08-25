@@ -5,10 +5,10 @@ import (
 	"github.com/hxysj/im-system/service"
 )
 
-func RegisterAttachRoutes(r *gin.Engine) {
+func RegisterAttachRoutes(r *gin.RouterGroup) {
 	attach := r.Group("/attach")
 	{
-		attach.POST("/upload",service.Upload)
+		attach.POST("/upload", service.Upload)
 	}
 
 }
