@@ -5,10 +5,10 @@ import (
 	"github.com/hxysj/im-system/service"
 )
 
-func RegisterRelationRequest(r *gin.Engine) {
+func RegisterRelationRequest(r *gin.RouterGroup) {
 	relation := r.Group("relation")
 	{
-		relation.GET("/getRelationList",service.GetRelationRequestList)
-		relation.POST("/toggleRelationRequest",service.ToggleRelationRequestStatus)
+		relation.GET("/getRelationList", service.GetRelationRequestList)
+		relation.POST("/toggleRelationRequest", service.ToggleRelationRequestStatus)
 	}
 }

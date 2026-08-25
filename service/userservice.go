@@ -114,11 +114,13 @@ func DeleteUser(ctx *gin.Context){
 	user := models.UserBasic{}
 	id,_ := strconv.Atoi(ctx.Query("id"))
 	user.UserId = int64(id)
-	models.DeleteUser(user)
-	ctx.JSON(200,gin.H{
-		"code":0,
-		"message":"删除用户成功！",
-	})
+	code,msg := models.DeleteUser(user)
+
+	if code == -1{
+		utils.RespFail(ctx.Writer,msg)
+	}else{
+		utils.RespOk(ctx.Writer,nil,msg)
+	}
 }
 
 // UpdateUser
@@ -142,11 +144,12 @@ func UpdateUser(ctx *gin.Context){
 
 	res := models.FindUserById(id)
 
-	if res.Name == ""{
+	if res.UserId == 0{
 		ctx.JSON(200,gin.H{
 			"code":-1,
 			"message":"用户不存在！",
 		})
+		return
 	}
 
 	user.UserId = int64(id)
@@ -226,7 +229,7 @@ func Login(ctx *gin.Context){
 	}
 
 	result := LoginResult{
-		Token: res.Identity,
+		Token: temp,
 		UserId: int(res.UserId),
 		Name: res.Name,
 		Phone: res.Phone,

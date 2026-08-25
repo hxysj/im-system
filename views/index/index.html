@@ -533,9 +533,21 @@
       }
       .workspace-content > .chat-layout,
       .workspace-content > .members-panel,
-      .workspace-content > .community-panel {
+      .workspace-content > .community-panel,
+      .workspace-content > .request-panel {
         min-height: 0;
         flex: 1;
+      }
+      .workspace-content.contacts-content {
+        display: block;
+        overflow: auto;
+      }
+      .workspace-content.contacts-content > .members-panel,
+      .workspace-content.contacts-content > .community-panel,
+      .workspace-content.contacts-content > .request-panel {
+        min-height: auto;
+        flex: none;
+        overflow: visible;
       }
       .contact-pane {
         display: flex;
@@ -1096,14 +1108,21 @@
         flex: 0 0 38px;
         align-items: center;
         justify-content: center;
+        overflow: hidden;
         border-radius: 10px;
         background: #eff6ff;
         color: var(--mint-dark);
         font-size: 14px;
         font-weight: 800;
       }
+      .community-card-mark img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
       .community-card-copy {
         min-width: 0;
+        flex: 1;
       }
       .community-card-copy h3 {
         margin: 1px 0 5px;
@@ -1118,6 +1137,22 @@
       .community-card-copy span {
         color: #9aa9a0;
         font-size: 10px;
+      }
+      .community-card-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .community-card-copy .community-owner-state {
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: #f3f5f4;
+        color: #66736c;
+      }
+      .community-card-copy .community-owner-state.owner {
+        background: #eaf7ef;
+        color: #257a4d;
       }
       .community-invite-row {
         display: flex;
@@ -1572,15 +1607,20 @@
                 timer: null
               },
               memberModal: { visible: false, editing: false, error: "" },
+              passwordModal: { visible: false, error: "" },
+              passwordSaving: false,
               friendModal: { visible: false, person: {} },
               memberForm: {
                 id: "",
                 name: "",
-                password: "",
-                repassword: "",
                 phone: "",
                 email: "",
                 identity: ""
+              },
+              passwordForm: {
+                old_password: "",
+                new_password: "",
+                re_new_password: ""
               }
             }
           },
@@ -1591,15 +1631,13 @@
                 item =>
                   this.userId(item) !== String(this.session.user.id) &&
                   (!keyword ||
-                    String(item.Name || "")
+                    this.personName(item)
                       .toLowerCase()
                       .includes(keyword))
               )
             },
             pendingRequestCount() {
-              return this.relationRequests.filter(
-                item => Number(item.status ?? item.Status) === 1
-              ).length
+              return this.relationRequests.filter(item => this.requestCanAct(item)).length
             }
           },
           mounted() {
@@ -1627,6 +1665,46 @@
             userId(person) {
               // 所有业务 ID 按字符串发送，避免数字精度和类型不一致。
               return String(person?.user_id ?? person?.UserId ?? person?.id ?? person?.ID ?? "")
+            },
+            // 统一读取后端大小写字段，兼容列表和详情响应。
+            personName(person) {
+              return String(person?.name ?? person?.Name ?? "")
+            },
+            personPhone(person) {
+              return String(person?.phone ?? person?.Phone ?? "")
+            },
+            personEmail(person) {
+              return String(person?.email ?? person?.Email ?? "")
+            },
+            personIdentity(person) {
+              return String(person?.identity ?? person?.Identity ?? "")
+            },
+            communityId(community) {
+              return String(
+                community?.community_id ??
+                  community?.CommunityId ??
+                  community?.id ??
+                  community?.ID ??
+                  ""
+              )
+            },
+            communityName(community) {
+              return String(
+                community?.community_name ??
+                  community?.CommunityName ??
+                  community?.name ??
+                  community?.Name ??
+                  ""
+              )
+            },
+            communityImg(community) {
+              return String(community?.img ?? community?.Img ?? "")
+            },
+            communityDesc(community) {
+              return String(community?.desc ?? community?.Desc ?? "")
+            },
+            communityIsOwner(community) {
+              return Boolean(community?.is_owner ?? community?.IsOwner)
             },
             initials(name) {
               return String(name || "?")
@@ -1731,7 +1809,7 @@
                 }
                 const result = body.data || body.Data
                 if ((body.code ?? body.Code) !== 0 || !result)
-                  throw new Error(result.message || body.message || "登录失败")
+                  throw new Error(body.msg || body.message || "登录失败")
                 this.session = {
                   user: {
                     id: String(result.user_id || result.id || result.ID),
@@ -1747,6 +1825,7 @@
                 await this.refreshFriends()
               } catch (error) {
                 this.authError =
+                  error.response?.data?.msg ||
                   error.response?.data?.message ||
                   error.message ||
                   "接口请求失败，请检查服务是否启动"
@@ -1855,7 +1934,8 @@
                   "/contact/addFriend",
                   this.formBody({
                     user_id: String(this.session.user.id),
-                    target_id: String(targetId)
+                    target_id: String(targetId),
+                    context: ""
                   })
                 )
                 const payload = response.data || {}
@@ -1863,10 +1943,10 @@
                   throw new Error(
                     payload.msg || payload.message || "添加好友失败"
                   )
-                this.showToast("好友添加成功")
+                this.showToast("好友申请已发送，等待对方处理")
                 this.userSearchResult = null
                 this.userSearchKeyword = ""
-                await this.refreshFriends()
+                await this.refreshRequests()
               } catch (error) {
                 this.showToast(
                   error.response?.data?.msg || error.message || "添加好友失败",
@@ -1907,39 +1987,45 @@
             requestIsPending(item) {
               return Number(item.status ?? item.Status) === 1
             },
+            requestIsOutgoing(item) {
+              const type = Number(item.type ?? item.Type)
+              return type === 1 && Boolean(item.target_user || item.TargetUser)
+            },
             requestPersonName(item) {
-              const person =
-                item.requester ||
-                item.Requester ||
-                item.target_user ||
-                item.TargetUser ||
-                item.invite_from ||
-                item.InviteFrom
-              return person?.name || person?.Name || "用户"
+              const type = Number(item.type ?? item.Type)
+              let person = null
+              if (type === 1) {
+                person = this.requestIsOutgoing(item)
+                  ? item.target_user || item.TargetUser
+                  : item.request_user || item.RequestUser
+              } else if (type === 2) {
+                person = item.target_user || item.TargetUser
+              } else if (type === 3) {
+                person = item.invite_from || item.InviteFrom
+              }
+              return this.personName(person) || "用户"
             },
             requestTitle(item) {
               const type = Number(item.type ?? item.Type)
-              if (type === 1)
-                return `${this.requestPersonName(item)} 请求添加好友`
+              if (type === 1) {
+                return this.requestIsOutgoing(item)
+                  ? `已向 ${this.requestPersonName(item)} 发送好友申请`
+                  : `${this.requestPersonName(item)} 请求添加好友`
+              }
               if (type === 2)
                 return `${this.requestPersonName(item)} 请求加入群聊`
               if (type === 3) {
-                const communityName =
-                  (item.community || item.Community)?.name ||
-                  (item.community || item.Community)?.Name ||
-                  "群聊"
-                return `${communityName} 邀请你加入`
+                return `${this.communityName(item.community || item.Community) || "群聊"} 邀请你加入`
               }
+              return "关系申请"
             },
             requestDescription(item) {
               const community = item.community || item.Community
-              return (
-                item.message ||
-                item.Message ||
-                community?.name ||
-                community?.Name ||
-                ""
-              )
+              const message = item.message || item.Message
+              if (message) return message
+              if (community) return this.communityName(community)
+              if (this.requestIsOutgoing(item)) return "等待对方处理"
+              return "请确认是否接受这条申请"
             },
             requestStatusText(item) {
               const status = Number(item.status ?? item.Status)
@@ -1948,6 +2034,10 @@
                 : status === 2
                   ? "已接受"
                   : "已拒绝"
+            },
+            requestCanAct(item) {
+              // 自己发出的好友申请只展示状态，不能由发送方处理。
+              return this.requestIsPending(item) && !this.requestIsOutgoing(item)
             },
             async refreshRequests() {
               if (!this.session.user) return
@@ -1969,8 +2059,7 @@
               }
             },
             async openRequests() {
-              this.currentView = "requests"
-              await this.refreshRequests()
+              await this.openContacts()
             },
             async toggleRequest(item, status) {
               const requestId = this.requestId(item)
@@ -2002,9 +2091,7 @@
             },
             async inviteCommunity(community) {
               const targetId = String(this.communityInviteTarget)
-              const communityId = String(
-                community.CommunityId || community.community_id || ""
-              )
+              const communityId = this.communityId(community)
               if (!targetId || !communityId) return
               try {
                 const response = await api.post(
@@ -2028,8 +2115,19 @@
               }
             },
             async openCommunities() {
-              this.currentView = "communities"
-              await this.refreshCommunities()
+              await this.openContacts()
+            },
+            async openContacts() {
+              this.currentView = "contacts"
+              await this.refreshContacts()
+            },
+            async refreshContacts() {
+              // 通讯录打开时同时刷新好友、群聊和申请，保持三个模块数据一致。
+              await Promise.all([
+                this.refreshFriends(),
+                this.refreshCommunities(),
+                this.refreshRequests()
+              ])
             },
             async createCommunity() {
               if (!this.communityForm.name.trim() || this.communitySaving)
@@ -2070,7 +2168,8 @@
                   "/community/joinCommunity",
                   this.formBody({
                     user_id: String(this.session.user.id),
-                    community: keyword
+                    target_id: keyword,
+                    context: ""
                   })
                 )
                 const payload = response.data || {}
@@ -2079,8 +2178,8 @@
                     payload.msg || payload.message || "加入群聊失败"
                   )
                 this.communityJoinKeyword = ""
-                this.showToast("已加入群聊")
-                await this.refreshCommunities()
+                this.showToast("加群申请已发送，等待群主处理")
+                await this.refreshRequests()
               } catch (error) {
                 this.showToast(
                   error.response?.data?.msg || error.message || "加入群聊失败",
@@ -2204,16 +2303,26 @@
               this.memberModal = { visible: true, editing: true, error: "" }
               this.memberForm = {
                 id: this.session.user.id,
-                name: person.Name || "",
-                password: "",
-                repassword: "",
-                phone: person.Phone || "",
-                email: person.Email || "",
-                identity: person.Identity || ""
+                name: this.personName(person),
+                phone: this.personPhone(person),
+                email: this.personEmail(person),
+                identity: this.personIdentity(person)
               }
             },
             closeMemberModal() {
               this.memberModal.visible = false
+            },
+            // 密码修改单独使用专用表单，避免混入资料更新请求。
+            openPasswordModal() {
+              this.passwordModal = { visible: true, error: "" }
+              this.passwordForm = {
+                old_password: "",
+                new_password: "",
+                re_new_password: ""
+              }
+            },
+            closePasswordModal() {
+              this.passwordModal.visible = false
             },
             viewFriendInfo(person) {
               // 好友资料单独以只读弹窗展示，避免进入当前用户的编辑流程。
@@ -2232,10 +2341,17 @@
               try {
                 const response = await api.post(
                   "/user/update",
-                  this.formBody(this.memberForm)
+                  this.formBody({
+                    id: String(this.session.user.id),
+                    name: this.memberForm.name,
+                    phone: this.memberForm.phone,
+                    email: this.memberForm.email,
+                    identity: this.memberForm.identity
+                  })
                 )
                 const body = response.data || {}
-                if (body.code !== 0) throw new Error(body.message || "保存失败")
+                if ((body.code ?? body.Code) !== 0)
+                  throw new Error(body.msg || body.message || "保存失败")
                 this.closeMemberModal()
                 this.session.user.name = this.memberForm.name
                 sessionStorage.setItem(
@@ -2249,6 +2365,50 @@
                   error.response?.data?.message || error.message || "保存失败"
               } finally {
                 this.loading = false
+              }
+            },
+            async changePassword() {
+              if (this.passwordSaving) return
+              if (
+                !this.passwordForm.old_password ||
+                !this.passwordForm.new_password ||
+                !this.passwordForm.re_new_password
+              ) {
+                this.passwordModal.error = "请完整填写密码"
+                return
+              }
+              if (
+                this.passwordForm.new_password !==
+                this.passwordForm.re_new_password
+              ) {
+                this.passwordModal.error = "两次新密码不一致"
+                return
+              }
+              this.passwordSaving = true
+              this.passwordModal.error = ""
+              try {
+                const response = await api.post(
+                  "/user/changePassword",
+                  this.formBody({
+                    user_id: String(this.session.user.id),
+                    old_password: this.passwordForm.old_password,
+                    new_password: this.passwordForm.new_password,
+                    re_new_password: this.passwordForm.re_new_password
+                  })
+                )
+                const body = response.data || {}
+                if ((body.code ?? body.Code) !== 0)
+                  throw new Error(body.msg || body.message || "修改密码失败")
+                this.closePasswordModal()
+                this.showToast("密码已修改")
+              } catch (error) {
+                this.passwordModal.error =
+                  error.response?.data?.msg ||
+                  error.response?.data?.message ||
+                  error.message ||
+                  "修改密码失败"
+              } finally {
+                this.passwordSaving = false
               }
             },
             async deactivateAccount() {

@@ -12,3 +12,7 @@ redis:
   minIdleCoon: 30
 id_generator:
   node_id: 20
+jwt:
+  secret: "Qx7vK9mR2pL8sT4nY6wH3cF1jN5aZ0uB8dE2gX9kM4qV7rS6tP1yC3fW5hJ0lA"
+  issuer: "im-system"
+  expire: "24h"
