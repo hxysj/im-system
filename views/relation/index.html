@@ -1,4 +1,4 @@
-<section v-if="currentView === 'requests'" class="request-panel">
+<section v-if="currentView === 'contacts'" class="request-panel">
   <div class="request-toolbar">
     <div>
       <p class="section-kicker">RELATION</p>
@@ -30,7 +30,7 @@
         <span>{{ requestDescription(item) }}</span>
         <small>{{ requestStatusText(item) }}</small>
       </div>
-      <div v-if="requestIsPending(item)" class="table-actions">
+      <div v-if="requestCanAct(item)" class="table-actions">
         <button
           class="primary-button request-action"
           type="button"

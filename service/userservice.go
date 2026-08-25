@@ -114,11 +114,13 @@ func DeleteUser(ctx *gin.Context){
 	user := models.UserBasic{}
 	id,_ := strconv.Atoi(ctx.Query("id"))
 	user.UserId = int64(id)
-	models.DeleteUser(user)
-	ctx.JSON(200,gin.H{
-		"code":0,
-		"message":"删除用户成功！",
-	})
+	code,msg := models.DeleteUser(user)
+
+	if code == -1{
+		utils.RespFail(ctx.Writer,msg)
+	}else{
+		utils.RespOk(ctx.Writer,nil,msg)
+	}
 }
 
 // UpdateUser
@@ -142,11 +144,12 @@ func UpdateUser(ctx *gin.Context){
 
 	res := models.FindUserById(id)
 
-	if res.Name == ""{
+	if res.UserId == 0{
 		ctx.JSON(200,gin.H{
 			"code":-1,
 			"message":"用户不存在！",
 		})
+		return
 	}
 
 	user.UserId = int64(id)
@@ -207,12 +210,12 @@ func Login(ctx *gin.Context){
 	// 登录成功后生成token
 	str := fmt.Sprintf("%d",time.Now().Unix())
 	temp := utils.MD5Encode(str)
-	nowTime := time.Now()	
-	if err := utils.DB.Model(&res).Where("user_id = ?",res.ID).
+	nowTime := time.Now().Unix()
+	if err := utils.DB.Model(&res).Where("user_id = ?",res.UserId).
 	Updates(map[string]interface{}{
 		"identity":temp,
 		"login_time":nowTime,
-	});err != nil{
+	}).Error;err != nil{
 		utils.RespFail(ctx.Writer,"登录失败！")
 		return
 	}
@@ -226,7 +229,7 @@ func Login(ctx *gin.Context){
 	}
 
 	result := LoginResult{
-		Token: res.Identity,
+		Token: temp,
 		UserId: int(res.UserId),
 		Name: res.Name,
 		Phone: res.Phone,

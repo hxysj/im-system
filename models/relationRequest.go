@@ -36,6 +36,7 @@ type RelationRequestItem struct {
 	Message string `json:"message"`
 	Requester *UserInfo `json:"requester,omitempty"`
 	TargetUser *UserInfo `json:"target_user,omitempty"`
+	RequestUser *UserInfo `json:"request_user,omitempty"`
 	Community *CommunityInfo `json:"community,omitempty"`
 	InviteFrom *UserInfo `json:"invite_from,omitempty"`
 }
@@ -55,23 +56,24 @@ func GetRelationRequestList (user_id int64) ([]RelationRequestItem,error){
 	}
 
 	var requests []RelationRequest
-
-	query := utils.DB.Where("target_id = ?",user_id)
-	if len(communityIds) > 0{
-		// query = utils.DB.Where("(target_id = ? AND type = 1) OR (type IN ? AND target_id = 2) OR (target_id = ? AND type = 3)",user_id,communityIds,user_id)
-		query = query.Where(
-			"(type = ? AND target_id = ?) OR "+
-				"(type IN ? AND target_id IN ?)",
+	// 搜素type=1（好友申请）并且target = 用户的 （对方发起申请） 或者requester 是自己的（自己发起申请） 或者 type = 3（群邀请）并且requester_id = 用户的
+	query := utils.DB.Where("(type = ? AND target_id = ?) OR" +
+	  		"(type = ? AND requester_id = ?) OR" +
+			"(type = ? AND requester_id = ?)",
 			1,
 			user_id,
-			[]int{2, 3},
-			communityIds,
+			1,
+			user_id,
+			3,
+			user_id,
 		)
-	}else{
-		query = query.Where("type = ? AND target_id = ?",1,user_id)
+	// 如果用户自己拥有的群
+	if len(communityIds) > 0{
+		// 找出type = 2（群申请）的数据
+		query = query.Or("type = ? AND target_id IN ?",2,communityIds)
 	}
 
-	if err:= query.Order("create_at DESC").Find(&requests).Error;err != nil{
+	if err:= query.Order("created_at DESC").Find(&requests).Error;err != nil{
 		return nil,err
 	}
 
@@ -81,8 +83,14 @@ func GetRelationRequestList (user_id int64) ([]RelationRequestItem,error){
 	for _,request := range requests{
 		switch request.Type{
 		case 1:
-			// 记录下要申请添加好友的id
-			userIdSet[request.RequesterId] = struct{}{}
+			// 自己发送申请的
+			if request.RequesterId == user_id{
+				userIdSet[request.TargetId] = struct{}{}
+			}else{
+			// 对方发送申请的
+				// 记录下要申请添加好友的id
+				userIdSet[request.RequesterId] = struct{}{}
+			}
 		case 2:
 			// 记录下申请入群的用户id
 			userIdSet[request.RequesterId] = struct{}{}
@@ -142,9 +150,17 @@ func GetRelationRequestList (user_id int64) ([]RelationRequestItem,error){
 
 		switch request.Type{
 		case 1:
-			if user,ok := userMap[request.TargetId];ok{
-				userCopy := user
-				item.TargetUser = &userCopy
+			// 如果是自己发送请求的
+			if request.RequesterId == user_id{
+				if user,ok := userMap[request.TargetId];ok{
+					userCopy := user
+					item.TargetUser = &userCopy
+				}
+			}else{
+				if user,ok := userMap[request.RequesterId];ok{
+					userCopy := user
+					item.RequestUser = &userCopy
+				}
 			}
 		case 2:
 			if user,ok := userMap[request.RequesterId];ok{
@@ -242,16 +258,19 @@ func ToggleRelationRequestStatus(r_id int64,user_id int64,status int) (int,strin
 		if relationRequestInfo.Type == 1 && user_id != relationRequestInfo.TargetId{
 			return -1,"参数有误"
 		}
-		var community Community
-		query := utils.DB.Model(&Community{}).Where("owner_id = ? AND community_id = ?",user_id,relationRequestInfo.TargetId)
-		if relationRequestInfo.Type == 3{
-			query = utils.DB.Model(&Community{}).Where("community_id = ?",relationRequestInfo.TargetId)
-		}
 
-		query.First(&community)
+		if relationRequestInfo.Type == 2 || relationRequestInfo.Type == 3{
+			var community Community
+			query := utils.DB.Model(&Community{}).Where("owner_id = ? AND community_id = ?",user_id,relationRequestInfo.TargetId)
+			if relationRequestInfo.Type == 3{
+				query = utils.DB.Model(&Community{}).Where("community_id = ?",relationRequestInfo.TargetId)
+			}
 
-		if community.CommunityId == 0{
-			return -1,"参数有误"
+			query.First(&community)
+
+			if community.CommunityId == 0 || (relationRequestInfo.Type == 3 && user_id != relationRequestInfo.RequesterId){
+				return -1,"参数有误"
+			}
 		}
 
 		if err := utils.DB.Model(&RelationRequest{}).Where("request_id = ? AND status = ?",r_id,1).Update("status",3).Error;err != nil{
@@ -279,6 +298,7 @@ func ToggleRelationRequestStatus(r_id int64,user_id int64,status int) (int,strin
 
 
 	}else{
+
 		var community Community
 		query := utils.DB.Model(&Community{}).Where("owner_id = ? AND community_id = ?",user_id,relationRequestInfo.TargetId)
 		if relationRequestInfo.Type == 3{
@@ -286,7 +306,7 @@ func ToggleRelationRequestStatus(r_id int64,user_id int64,status int) (int,strin
 		}
 		query.First(&community)
 
-		if community.CommunityId == 0{
+		if community.CommunityId == 0  || (relationRequestInfo.Type == 3 && user_id != relationRequestInfo.RequesterId){
 			return -1,"参数有误"
 		}
 

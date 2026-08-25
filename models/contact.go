@@ -65,7 +65,7 @@ func AddFriend(userId uint,targetId uint) int{
 		utils.DB.Where("owen_id = ? and target_id = ? and type = 1",userId,targetId).Find(&contact)
 
 		if contact.ContactId != 0{
-			return 0
+			return -1
 		}
 
 		// 开启事务
@@ -83,7 +83,7 @@ func AddFriend(userId uint,targetId uint) int{
 		contact.ContactId = utils.NextId()
 		if err := tx.Create(&contact).Error; err != nil{
 			tx.Rollback()  //回滚数据库
-			return 0
+			return -1
 		}
 
 		owner_contact := Contact{}
@@ -91,10 +91,13 @@ func AddFriend(userId uint,targetId uint) int{
 		owner_contact.TargetId = userId
 		owner_contact.Type = 1
 		owner_contact.ContactId = utils.NextId()
-		tx.Create(&owner_contact)
+		if err := tx.Create(&owner_contact).Error;err != nil{
+			tx.Rollback()
+			return  -1
+		}
 		// 两个操作都成功了之后才提交
 		tx.Commit()
-		return 1
+		return 0
 	}
-	return 0
+	return -1
 }

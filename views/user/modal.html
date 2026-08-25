@@ -1,116 +1,170 @@
 <div
-        v-if="memberModal.visible"
-        class="modal-backdrop"
-        @click.self="closeMemberModal"
-      >
-        <form class="modal-card" @submit.prevent="saveProfile">
-          <div class="modal-heading">
-            <div>
-              <h3>编辑我的资料</h3>
-              <p class="auth-subtitle" style="margin-bottom: 0">
-                仅可修改当前登录账号的信息。
-              </p>
-            </div>
-            <button
-              class="close-button"
-              type="button"
-              aria-label="关闭"
-              @click="closeMemberModal"
-            >
-              ×
-            </button>
-          </div>
-          <div class="field">
-            <label for="member-name">用户名</label
-            ><input id="member-name" v-model.trim="memberForm.name" required />
-          </div>
-          <div class="field">
-            <label for="member-password"
-              >新密码（必填）</label
-            ><input
-              id="member-password"
-              v-model="memberForm.password"
-              type="password"
-              required
-            />
-          </div>
-          <div class="field">
-            <label for="member-phone">手机号</label
-            ><input
-              id="member-phone"
-              v-model.trim="memberForm.phone"
-              placeholder="可选"
-            />
-          </div>
-          <div class="field">
-            <label for="member-email">邮箱</label
-            ><input
-              id="member-email"
-              v-model.trim="memberForm.email"
-              type="email"
-              placeholder="可选"
-            />
-          </div>
-          <div class="field">
-            <label for="member-identity">身份标识</label
-            ><input
-              id="member-identity"
-              v-model.trim="memberForm.identity"
-              placeholder="按接口字段填写"
-            />
-          </div>
-          <p class="form-hint">{{ memberModal.error }}</p>
-          <div class="modal-actions">
-            <button
-              class="ghost-button"
-              type="button"
-              @click="closeMemberModal"
-            >
-              取消</button
-            ><button class="primary-button" type="submit" :disabled="loading">
-              {{ loading ? '提交中…' : '保存' }}
-            </button>
-          </div>
-        </form>
+  v-if="memberModal.visible"
+  class="modal-backdrop"
+  @click.self="closeMemberModal"
+>
+  <form class="modal-card" @submit.prevent="saveProfile">
+    <div class="modal-heading">
+      <div>
+        <h3>编辑我的资料</h3>
+        <p class="auth-subtitle" style="margin-bottom: 0">
+          仅可修改当前登录账号的信息。
+        </p>
       </div>
-      <div
-        v-if="friendModal.visible"
-        class="modal-backdrop"
-        @click.self="closeFriendInfo"
+      <button
+        class="close-button"
+        type="button"
+        aria-label="关闭"
+        @click="closeMemberModal"
       >
-        <section class="modal-card" aria-label="好友资料">
-          <div class="modal-heading">
-            <div>
-              <h3>好友资料</h3>
-              <p class="auth-subtitle" style="margin-bottom: 0">
-                仅供查看，无法编辑。
-              </p>
-            </div>
-            <button
-              class="close-button"
-              type="button"
-              aria-label="关闭"
-              @click="closeFriendInfo"
-            >
-              ×
-            </button>
-          </div>
-          <div class="profile-detail-list">
-            <div class="profile-detail-item">
-              <span>用户名</span><strong>{{ friendModal.person.Name || '未命名用户' }}</strong>
-            </div>
-            <div class="profile-detail-item">
-              <span>用户 ID</span><strong>{{ friendModal.person.ID }}</strong>
-            </div>
-            <div class="profile-detail-item">
-              <span>手机号</span><strong>{{ friendModal.person.Phone || '未填写' }}</strong>
-            </div>
-            <div class="profile-detail-item">
-              <span>邮箱</span><strong>{{ friendModal.person.Email || '未填写' }}</strong>
-            </div>
-            <div class="profile-detail-item">
-              <span>身份标识</span><strong>{{ friendModal.person.Identity || '未设置' }}</strong>
-            </div>
-          </div>
-        </section>
+        ×
+      </button>
+    </div>
+    <div class="field">
+      <label for="member-name">用户名</label>
+      <input id="member-name" v-model.trim="memberForm.name" required />
+    </div>
+    <div class="field">
+      <label for="member-phone">手机号</label>
+      <input
+        id="member-phone"
+        v-model.trim="memberForm.phone"
+        placeholder="可选"
+      />
+    </div>
+    <div class="field">
+      <label for="member-email">邮箱</label>
+      <input
+        id="member-email"
+        v-model.trim="memberForm.email"
+        type="email"
+        placeholder="可选"
+      />
+    </div>
+    <div class="field">
+      <label for="member-identity">身份标识</label>
+      <input
+        id="member-identity"
+        v-model.trim="memberForm.identity"
+        placeholder="按接口字段填写"
+      />
+    </div>
+    <p class="form-hint">{{ memberModal.error }}</p>
+    <div class="modal-actions">
+      <button class="ghost-button" type="button" @click="closeMemberModal">
+        取消
+      </button>
+      <button class="primary-button" type="submit" :disabled="loading">
+        {{ loading ? '提交中…' : '保存' }}
+      </button>
+    </div>
+  </form>
+</div>
+<div
+  v-if="passwordModal.visible"
+  class="modal-backdrop"
+  @click.self="closePasswordModal"
+>
+  <form class="modal-card" @submit.prevent="changePassword">
+    <div class="modal-heading">
+      <div>
+        <h3>修改密码</h3>
+        <p class="auth-subtitle" style="margin-bottom: 0">
+          验证当前密码后设置新密码。
+        </p>
       </div>
+      <button
+        class="close-button"
+        type="button"
+        aria-label="关闭"
+        @click="closePasswordModal"
+      >
+        ×
+      </button>
+    </div>
+    <div class="field">
+      <label for="old-password">当前密码</label>
+      <input
+        id="old-password"
+        v-model="passwordForm.old_password"
+        type="password"
+        autocomplete="current-password"
+        required
+      />
+    </div>
+    <div class="field">
+      <label for="new-password">新密码</label>
+      <input
+        id="new-password"
+        v-model="passwordForm.new_password"
+        type="password"
+        autocomplete="new-password"
+        required
+      />
+    </div>
+    <div class="field">
+      <label for="re-new-password">确认新密码</label>
+      <input
+        id="re-new-password"
+        v-model="passwordForm.re_new_password"
+        type="password"
+        autocomplete="new-password"
+        required
+      />
+    </div>
+    <p class="form-hint">{{ passwordModal.error }}</p>
+    <div class="modal-actions">
+      <button
+        class="ghost-button"
+        type="button"
+        @click="closePasswordModal"
+      >
+        取消
+      </button>
+      <button class="primary-button" type="submit" :disabled="passwordSaving">
+        {{ passwordSaving ? '修改中…' : '确认修改' }}
+      </button>
+    </div>
+  </form>
+</div>
+<div
+  v-if="friendModal.visible"
+  class="modal-backdrop"
+  @click.self="closeFriendInfo"
+>
+  <section class="modal-card" aria-label="好友资料">
+    <div class="modal-heading">
+      <div>
+        <h3>好友资料</h3>
+        <p class="auth-subtitle" style="margin-bottom: 0">
+          仅供查看，无法编辑。
+        </p>
+      </div>
+      <button
+        class="close-button"
+        type="button"
+        aria-label="关闭"
+        @click="closeFriendInfo"
+      >
+        ×
+      </button>
+    </div>
+    <div class="profile-detail-list">
+      <div class="profile-detail-item">
+        <span>用户名</span><strong>{{ personName(friendModal.person) || '未命名用户' }}</strong>
+      </div>
+      <div class="profile-detail-item">
+        <span>用户 ID</span><strong>{{ userId(friendModal.person) }}</strong>
+      </div>
+      <div class="profile-detail-item">
+        <span>手机号</span><strong>{{ personPhone(friendModal.person) || '未填写' }}</strong>
+      </div>
+      <div class="profile-detail-item">
+        <span>邮箱</span><strong>{{ personEmail(friendModal.person) || '未填写' }}</strong>
+      </div>
+      <div class="profile-detail-item">
+        <span>身份标识</span><strong>{{ personIdentity(friendModal.person) || '未设置' }}</strong>
+      </div>
+    </div>
+  </section>
+</div>

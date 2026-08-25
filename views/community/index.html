@@ -1,10 +1,10 @@
-<section v-if="currentView === 'communities'" class="community-panel">
+<section v-if="currentView === 'contacts'" class="community-panel">
   <div class="community-toolbar">
     <div>
       <p class="section-kicker">COMMUNITY</p>
       <h2>群聊空间</h2>
       <p class="section-description">
-        创建属于你的群聊，也可以通过群名称或群 ID 加入已有群聊。
+        创建属于你的群聊，也可以通过群 ID 申请加入已有群聊。
       </p>
     </div>
     <button
@@ -44,20 +44,20 @@
     </form>
 
     <form class="community-join-form" @submit.prevent="joinCommunity">
-      <label for="community-keyword">加入群聊</label>
+      <label for="community-keyword">申请加入群聊</label>
       <div class="inline-form">
         <input
           id="community-keyword"
           v-model.trim="communityJoinKeyword"
           class="search-input"
-          placeholder="输入群名称或群 ID"
+          placeholder="输入群 ID"
           required
         />
         <button class="ghost-button" type="submit" :disabled="communityJoining">
           {{ communityJoining ? '加入中...' : '加入' }}
         </button>
       </div>
-      <p class="form-hint">加入成功后刷新列表即可查看。</p>
+      <p class="form-hint">提交后等待群主在申请中心处理。</p>
     </form>
   </div>
 
@@ -79,31 +79,43 @@
   <div v-if="communityLoading" class="table-empty">正在加载群聊...</div>
   <div v-else-if="!communities.length" class="community-empty">
     <strong>还没有群聊</strong>
-    <span>创建一个群聊，或者输入群名称加入已有群聊。</span>
+    <span>创建一个群聊，或者输入群 ID 申请加入已有群聊。</span>
   </div>
   <div v-else class="community-grid">
     <article
       v-for="community in communities"
-      :key="community.ID || community.id || community.community_id"
+      :key="communityId(community)"
       class="community-card"
     >
-      <div class="community-card-mark">群</div>
+      <div class="community-card-mark">
+        <img
+          v-if="communityImg(community)"
+          :src="communityImg(community)"
+          alt=""
+        />
+        <span v-else>群</span>
+      </div>
       <div class="community-card-copy">
-        <h3>{{ community.Name || community.name || '未命名群聊' }}</h3>
-        <p>{{ community.Desc || community.desc || '这个群聊还没有简介。' }}</p>
-        <span
-          >ID {{ community.CommunityId || community.community_id || community.ID
-          || community.id }}</span
-        >
+        <h3>{{ communityName(community) || '未命名群聊' }}</h3>
+        <p>{{ communityDesc(community) || '这个群聊还没有简介。' }}</p>
+        <div class="community-card-meta">
+          <span>ID {{ communityId(community) }}</span>
+          <span
+            class="community-owner-state"
+            :class="{ owner: communityIsOwner(community) }"
+          >
+            {{ communityIsOwner(community) ? '我创建的' : '已加入' }}
+          </span>
+        </div>
         <div class="community-invite-row">
           <select v-model="communityInviteTarget" class="search-input">
             <option value="">邀请好友</option>
             <option
               v-for="person in filteredFriends"
-              :key="person.ID"
+              :key="userId(person)"
               :value="userId(person)"
             >
-              {{ person.Name }}
+              {{ personName(person) }}
             </option>
           </select>
           <button

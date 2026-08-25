@@ -17,6 +17,9 @@
       <button class="ghost-button" type="button" @click="openEditProfile">
         编辑资料
       </button>
+      <button class="ghost-button" type="button" @click="openPasswordModal">
+        修改密码
+      </button>
       <button class="danger-button" type="button" @click="deactivateAccount">
         注销账号
       </button>
@@ -36,27 +39,11 @@
       </button>
       <button
         class="nav-button"
-        :class="{ active: currentView === 'friends' }"
+        :class="{ active: currentView === 'contacts' }"
         type="button"
-        @click="currentView = 'friends'"
+        @click="openContacts"
       >
-        <span class="nav-icon">♧</span><span>好友</span>
-      </button>
-      <button
-        class="nav-button"
-        :class="{ active: currentView === 'communities' }"
-        type="button"
-        @click="openCommunities"
-      >
-        <span class="nav-icon">群</span><span>群聊</span>
-      </button>
-      <button
-        class="nav-button"
-        :class="{ active: currentView === 'requests' }"
-        type="button"
-        @click="openRequests"
-      >
-        <span class="nav-icon">!</span><span>Requests</span>
+        <span class="nav-icon">♧</span><span>通讯录</span>
         <span v-if="pendingRequestCount" class="nav-badge"
           >{{ pendingRequestCount }}</span
         >
@@ -68,15 +55,15 @@
     </aside>
     <main class="main-panel">
       <section
-        v-if="currentView !== 'communities' && currentView !== 'requests'"
+        v-if="currentView !== 'contacts'"
         class="workspace-summary"
       >
         <div class="page-heading">
           <div>
-            <h2>{{ currentView === 'chat' ? '消息中心' : '好友列表' }}</h2>
+            <h2>{{ currentView === 'chat' ? '消息中心' : '通讯录' }}</h2>
             <p>
               {{ currentView === 'chat' ? '选择一位好友，开始一段私密对话。' :
-              '仅展示已建立好友关系的联系人。' }}
+              '好友、群聊和申请记录统一在通讯录中管理。' }}
             </p>
           </div>
           <div class="heading-action">
@@ -110,7 +97,10 @@
           </div>
         </div>
       </section>
-      <section class="workspace-content">
+      <section
+        class="workspace-content"
+        :class="{ 'contacts-content': currentView === 'contacts' }"
+      >
         <div id="chat-module"></div>
         <div id="member-module"></div>
         <div id="community-module"></div>

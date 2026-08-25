@@ -17,19 +17,19 @@
     <div class="contact-list">
       <button
         v-for="person in filteredFriends"
-        :key="person.ID"
+        :key="userId(person)"
         class="contact-row"
-        :class="{ active: selectedUser && selectedUser.ID === person.ID }"
+        :class="{ active: selectedUser && userId(selectedUser) === userId(person) }"
         type="button"
         @click="selectUser(person)"
       >
-        <span class="avatar">{{ initials(person.Name) }}</span
+        <span class="avatar">{{ initials(personName(person)) }}</span
         ><span class="contact-copy"
-          ><span class="contact-name">{{ person.Name || '未命名用户' }}</span
+          ><span class="contact-name">{{ personName(person) || '未命名用户' }}</span
           ><span class="contact-preview"
-            >{{ lastPreview(person.ID) }}</span
+            >{{ lastPreview(userId(person)) }}</span
           ></span
-        ><span class="contact-id">#{{ person.ID }}</span>
+        ><span class="contact-id">#{{ userId(person) }}</span>
       </button>
       <div v-if="!filteredFriends.length" class="empty-state">
         <div><strong>暂无联系人</strong><span>刷新后再试试</span></div>
@@ -39,10 +39,10 @@
   <section class="chat-pane">
     <div class="chat-head">
       <div v-if="selectedUser" class="chat-user">
-        <span class="avatar">{{ initials(selectedUser.Name) }}</span>
+        <span class="avatar">{{ initials(personName(selectedUser)) }}</span>
         <div>
-          <strong>{{ selectedUser.Name || '未命名用户' }}</strong
-          ><span>用户 ID {{ selectedUser.ID }} · 点对点连接</span>
+          <strong>{{ personName(selectedUser) || '未命名用户' }}</strong
+          ><span>用户 ID {{ userId(selectedUser) }} · 点对点连接</span>
         </div>
       </div>
       <div v-else class="chat-user">
@@ -88,7 +88,7 @@
             <span v-else>{{ item.content }}</span>
           </div>
           <div class="message-meta">
-            {{ item.mine ? '我' : (selectedUser ? selectedUser.Name : '系统') }}
+            {{ item.mine ? '我' : (selectedUser ? personName(selectedUser) : '系统') }}
             · {{ item.time }}
           </div>
         </div>

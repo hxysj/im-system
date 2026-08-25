@@ -1,6 +1,8 @@
 package models
 
 import (
+	"fmt"
+
 	"github.com/hxysj/im-system/utils"
 	"gorm.io/gorm"
 )
@@ -64,13 +66,25 @@ func CreateUser(user UserBasic) *gorm.DB{
 }
 
 // 删除用户-软删除
-func DeleteUser(user UserBasic) *gorm.DB{
-	return utils.DB.Delete(&user)
+func DeleteUser(user UserBasic) (int,string){
+
+	if err := utils.DB.Where("user_id = ?",user.UserId).Delete(&UserBasic{}).Error; err != nil{
+		fmt.Println("delete >>> ",err)
+		return -1,"删除失败"
+	}
+	return 0,"删除用户成功！"
 }
 
 // 更新用户信息
 func UpdateUser(user UserBasic) *gorm.DB{
-	return utils.DB.Model(&user).Updates(UserBasic{Name: user.Name,Phone: user.Phone,Email: user.Email,Identity: user.Identity})
+	return utils.DB.Model(&UserBasic{}).
+		Where("user_id = ?",user.UserId).
+		Updates(map[string]interface{}{
+			"name": user.Name,
+			"phone":user.Phone,
+			"email": user.Email,
+			"identity": user.Identity,
+		})
 }
 
 // 通过手机号或者名称搜索用户
@@ -82,7 +96,7 @@ func FindUserByPhoneOrNameOrEmail(key string) UserBasic{
 
 // 修改用户密码
 func UpdateUserPassword(user_id int64,oldPassword string, newPassword string) (int,string){
-	
+
 	user := FindUserById(int(user_id))
 
 	oldPwd := utils.MakePassword(oldPassword,user.Salt)
@@ -96,10 +110,10 @@ func UpdateUserPassword(user_id int64,oldPassword string, newPassword string) (i
 	if newPwd == user.Password{
 		return -1,"新密码不能与旧密码一样"
 	}
-	
-	if err := utils.DB.Model(&user).Update("password",newPwd); err != nil{
+
+	if err := utils.DB.Model(&user).Update("password",newPwd).Error; err != nil{
 		return -1, "修改失败"
 	}
-	
+
 	return 0,"修改成功"
 }

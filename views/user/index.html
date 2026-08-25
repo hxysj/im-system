@@ -1,4 +1,4 @@
-<div v-else-if="currentView === 'friends'" class="members-panel">
+<div v-else-if="currentView === 'contacts'" class="members-panel">
               <section class="friend-search-panel">
                 <div>
                   <h3>添加好友</h3>
@@ -8,11 +8,14 @@
                   <input v-model.trim="userSearchKeyword" class="search-input" type="search" placeholder="用户名、手机号或邮箱" required />
                   <button class="ghost-button" type="submit" :disabled="userSearchLoading">{{ userSearchLoading ? '搜索中...' : '搜索' }}</button>
                 </form>
+                <button class="ghost-button" type="button" @click="refreshFriends" :disabled="loading">
+                  {{ loading ? '刷新中...' : '刷新好友' }}
+                </button>
                 <div v-if="userSearchResult" class="friend-search-result">
-                  <span class="avatar">{{ initials(userSearchResult.name || userSearchResult.Name) }}</span>
+                  <span class="avatar">{{ initials(personName(userSearchResult)) }}</span>
                   <div>
-                    <strong>{{ userSearchResult.name || userSearchResult.Name }}</strong>
-                    <span>用户 ID {{ userSearchResult.user_id || userSearchResult.UserId || userSearchResult.id || userSearchResult.ID }}</span>
+                    <strong>{{ personName(userSearchResult) }}</strong>
+                    <span>用户 ID {{ userId(userSearchResult) }}</span>
                   </div>
                   <button class="primary-button add-friend-button" type="button" @click="addSearchedUser" :disabled="friendAdding">
                     {{ friendAdding ? '添加中...' : '添加好友' }}
@@ -29,23 +32,23 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="person in filteredFriends" :key="person.ID">
+                  <tr v-for="person in filteredFriends" :key="userId(person)">
                     <td>
                       <div class="member-cell">
-                        <span class="avatar">{{ initials(person.Name) }}</span>
+                        <span class="avatar">{{ initials(personName(person)) }}</span>
                         <div>
-                          <strong>{{ person.Name || '未命名用户' }}</strong
-                          ><span>ID · {{ person.ID }}</span>
+                          <strong>{{ personName(person) || '未命名用户' }}</strong
+                          ><span>ID · {{ userId(person) }}</span>
                         </div>
                       </div>
                     </td>
                     <td>
-                      {{ person.Phone || '未填写' }}<br /><span
+                      {{ personPhone(person) || '未填写' }}<br /><span
                         style="color: #9aa9a0"
-                        >{{ person.Email || '未填写邮箱' }}</span
+                        >{{ personEmail(person) || '未填写邮箱' }}</span
                       >
                     </td>
-                    <td>{{ person.Identity || '未设置' }}</td>
+                    <td>{{ personIdentity(person) || '未设置' }}</td>
                     <td>
                       <button
                         class="ghost-button"

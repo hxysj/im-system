@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -28,24 +29,19 @@ func CreateCommunity(c *gin.Context){
 
 
 func LoadCommunity(c *gin.Context){
-	user_id,_ := strconv.Atoi(c.PostForm("user_id"))
+	user_id,err := strconv.Atoi(c.PostForm("user_id"))
+
+	if err != nil || user_id <= 0{
+		fmt.Println(err)
+		utils.RespFail(c.Writer,"参数有误")
+		return
+	}
+
 	status,data,msg := models.LoadCommunity(uint(user_id))
 
 	if status == -1{
 		utils.RespFail(c.Writer,msg)
 	}else{
 		utils.RespOkList(c.Writer,data,len(data))
-	}
-}
-
-func JoinGroups(c *gin.Context){
-	userId,_ := strconv.Atoi(c.PostForm("user_id"))
-
-	status,msg := models.JoinGroups(uint(userId),c.PostForm("community"))
-
-	if status == -1{
-		utils.RespFail(c.Writer,msg)
-	}else{
-		utils.RespOk(c.Writer,nil,msg)
 	}
 }
