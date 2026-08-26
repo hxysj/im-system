@@ -1,117 +1,77 @@
-<section v-if="currentView === 'contacts'" class="community-panel">
-  <div class="community-toolbar">
-    <div>
-      <p class="section-kicker">COMMUNITY</p>
-      <h2>群聊空间</h2>
-      <p class="section-description">
-        创建属于你的群聊，也可以通过群 ID 申请加入已有群聊。
-      </p>
+<div v-if="currentView === 'contacts' && contactSection === 'groups'">
+  <section class="section-band">
+    <div class="section-band-title">
+      <strong>创建群聊</strong><span>建立新的讨论空间</span>
     </div>
-    <button
-      class="primary-button community-create-button"
-      type="button"
-      @click="createCommunity"
-      :disabled="communitySaving"
-    >
-      {{ communitySaving ? '创建中...' : '创建群聊' }}
-    </button>
-  </div>
-
-  <div class="community-actions">
-    <form class="community-create-form" @submit.prevent="createCommunity">
-      <div class="field">
-        <label for="community-name">群名称</label>
-        <input
-          id="community-name"
-          v-model.trim="communityForm.name"
-          maxlength="40"
-          placeholder="例如：产品讨论组"
-          required
-        />
-      </div>
-      <div class="field">
-        <label for="community-desc">群简介</label>
-        <textarea
-          id="community-desc"
-          v-model.trim="communityForm.desc"
-          maxlength="160"
-          placeholder="介绍一下这个群聊"
-        ></textarea>
-      </div>
-      <button class="ghost-button" type="submit" :disabled="communitySaving">
-        保存并创建
+    <form class="community-create-fields" @submit.prevent="createCommunity">
+      <input
+        v-model.trim="communityForm.name"
+        class="mobile-field"
+        maxlength="40"
+        placeholder="群名称"
+        required
+      />
+      <textarea
+        v-model.trim="communityForm.desc"
+        class="mobile-field"
+        maxlength="160"
+        placeholder="群简介（选填）"
+      ></textarea>
+      <button class="compact-button primary" type="submit" :disabled="communitySaving">
+        {{ communitySaving ? '创建中' : '创建群聊' }}
       </button>
     </form>
+  </section>
 
-    <form class="community-join-form" @submit.prevent="joinCommunity">
-      <label for="community-keyword">申请加入群聊</label>
-      <div class="inline-form">
-        <input
-          id="community-keyword"
-          v-model.trim="communityJoinKeyword"
-          class="search-input"
-          placeholder="输入群 ID"
-          required
-        />
-        <button class="ghost-button" type="submit" :disabled="communityJoining">
-          {{ communityJoining ? '加入中...' : '加入' }}
-        </button>
-      </div>
-      <p class="form-hint">提交后等待群主在申请中心处理。</p>
-    </form>
-  </div>
-
-  <div class="community-list-head">
-    <div>
-      <h3>我参与的群聊 <span>{{ communities.length }}</span></h3>
-      <p>群聊数据来自当前账号已创建或已加入的关系。</p>
+  <section class="section-band">
+    <div class="section-band-title">
+      <strong>加入群聊</strong><span>通过群 ID 申请加入</span>
     </div>
-    <button
-      class="ghost-button"
-      type="button"
-      @click="refreshCommunities"
-      :disabled="communityLoading"
-    >
-      刷新列表
-    </button>
-  </div>
+    <form class="mobile-inline-form" @submit.prevent="joinCommunity">
+      <input
+        v-model.trim="communityJoinKeyword"
+        class="mobile-field"
+        inputmode="numeric"
+        placeholder="输入群 ID"
+        required
+      />
+      <button class="compact-button" type="submit" :disabled="communityJoining">
+        {{ communityJoining ? '提交中' : '申请加入' }}
+      </button>
+    </form>
+  </section>
 
-  <div v-if="communityLoading" class="table-empty">正在加载群聊...</div>
-  <div v-else-if="!communities.length" class="community-empty">
-    <strong>还没有群聊</strong>
-    <span>创建一个群聊，或者输入群 ID 申请加入已有群聊。</span>
+  <div v-if="communityLoading" class="empty-mobile">
+    <div><strong>正在加载群聊</strong></div>
   </div>
-  <div v-else class="community-grid">
+  <div v-else-if="communities.length" class="mobile-list">
     <article
-      v-for="community in communities"
+      v-for="(community, index) in communities"
       :key="communityId(community)"
-      class="community-card"
+      class="community-mobile-item"
     >
-      <div class="community-card-mark">
+      <span class="mobile-avatar" :class="{ warm: index % 2 === 1 }">
         <img
           v-if="communityImg(community)"
-          :src="communityImg(community)"
-          alt=""
+          :src="assetUrl(communityImg(community))"
+          :alt="communityName(community)"
         />
-        <span v-else>群</span>
-      </div>
-      <div class="community-card-copy">
+        <template v-else>群</template>
+      </span>
+      <div class="community-mobile-copy">
         <h3>{{ communityName(community) || '未命名群聊' }}</h3>
-        <p>{{ communityDesc(community) || '这个群聊还没有简介。' }}</p>
-        <div class="community-card-meta">
+        <p>{{ communityDesc(community) || '这个群聊还没有简介' }}</p>
+        <div class="community-meta-line">
           <span>ID {{ communityId(community) }}</span>
-          <span
-            class="community-owner-state"
-            :class="{ owner: communityIsOwner(community) }"
-          >
+          <span class="status-chip">
             {{ communityIsOwner(community) ? '我创建的' : '已加入' }}
           </span>
         </div>
-        <div class="community-invite-row">
-          <select v-model="communityInviteTarget" class="search-input">
+        <div class="invite-line">
+          <select v-model="communityInviteTarget" class="mobile-field">
             <option value="">邀请好友</option>
             <option
-              v-for="person in filteredFriends"
+              v-for="person in friends"
               :key="userId(person)"
               :value="userId(person)"
             >
@@ -119,7 +79,7 @@
             </option>
           </select>
           <button
-            class="ghost-button"
+            class="compact-button"
             type="button"
             :disabled="!communityInviteTarget"
             @click="inviteCommunity(community)"
@@ -130,4 +90,11 @@
       </div>
     </article>
   </div>
-</section>
+  <div v-else class="empty-mobile">
+    <div>
+      <span class="empty-mobile-icon"><i data-lucide="users-round"></i></span>
+      <strong>还没有群聊</strong>
+      <span>创建群聊，或通过群 ID 申请加入</span>
+    </div>
+  </div>
+</div>

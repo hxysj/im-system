@@ -1,67 +1,96 @@
-<div v-else-if="currentView === 'contacts'" class="members-panel">
-              <section class="friend-search-panel">
-                <div>
-                  <h3>添加好友</h3>
-                  <p>先搜索用户名、手机号或邮箱，确认用户后再添加。</p>
-                </div>
-                <form class="friend-search-form" @submit.prevent="searchUser">
-                  <input v-model.trim="userSearchKeyword" class="search-input" type="search" placeholder="用户名、手机号或邮箱" required />
-                  <button class="ghost-button" type="submit" :disabled="userSearchLoading">{{ userSearchLoading ? '搜索中...' : '搜索' }}</button>
-                </form>
-                <button class="ghost-button" type="button" @click="refreshFriends" :disabled="loading">
-                  {{ loading ? '刷新中...' : '刷新好友' }}
-                </button>
-                <div v-if="userSearchResult" class="friend-search-result">
-                  <span class="avatar">{{ initials(personName(userSearchResult)) }}</span>
-                  <div>
-                    <strong>{{ personName(userSearchResult) }}</strong>
-                    <span>用户 ID {{ userId(userSearchResult) }}</span>
-                  </div>
-                  <button class="primary-button add-friend-button" type="button" @click="addSearchedUser" :disabled="friendAdding">
-                    {{ friendAdding ? '添加中...' : '添加好友' }}
-                  </button>
-                </div>
-              </section>
-              <table class="members-table">
-                <thead>
-                  <tr>
-                    <th>好友</th>
-                    <th>联系方式</th>
-                    <th>身份标识</th>
-                    <th>资料</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="person in filteredFriends" :key="userId(person)">
-                    <td>
-                      <div class="member-cell">
-                        <span class="avatar">{{ initials(personName(person)) }}</span>
-                        <div>
-                          <strong>{{ personName(person) || '未命名用户' }}</strong
-                          ><span>ID · {{ userId(person) }}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      {{ personPhone(person) || '未填写' }}<br /><span
-                        style="color: #9aa9a0"
-                        >{{ personEmail(person) || '未填写邮箱' }}</span
-                      >
-                    </td>
-                    <td>{{ personIdentity(person) || '未设置' }}</td>
-                    <td>
-                      <button
-                        class="ghost-button"
-                        type="button"
-                        @click="viewFriendInfo(person)"
-                      >
-                        查看资料
-                      </button>
-                    </td>
-                  </tr>
-                  <tr v-if="!filteredFriends.length">
-                    <td colspan="4" class="table-empty">暂无好友数据</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+<div v-if="currentView === 'contacts' && contactSection === 'friends'">
+  <section class="section-band">
+    <div class="section-band-title">
+      <strong>添加好友</strong><span>用户名 / 手机号 / 邮箱</span>
+    </div>
+    <form class="mobile-inline-form" @submit.prevent="searchUser">
+      <input
+        v-model.trim="userSearchKeyword"
+        class="mobile-field"
+        type="search"
+        placeholder="搜索用户"
+        required
+      />
+      <button class="compact-button primary" type="submit" :disabled="userSearchLoading">
+        {{ userSearchLoading ? '搜索中' : '搜索' }}
+      </button>
+    </form>
+    <div v-if="userSearchResult" class="search-result-mobile">
+      <span class="mobile-avatar">{{ initials(personName(userSearchResult)) }}</span>
+      <span class="mobile-row-copy">
+        <span class="mobile-row-title">{{ personName(userSearchResult) }}</span>
+        <span class="mobile-row-description">讯岛 ID · {{ userId(userSearchResult) }}</span>
+      </span>
+      <button
+        class="compact-button primary"
+        type="button"
+        :disabled="friendAdding"
+        @click="addSearchedUser"
+      >
+        {{ friendAdding ? '发送中' : '添加' }}
+      </button>
+    </div>
+  </section>
+
+  <div class="mobile-search-wrap">
+    <span class="inline-icon"><i data-lucide="search"></i></span>
+    <input
+      v-model.trim="contactSearchText"
+      class="mobile-search-input"
+      type="search"
+      placeholder="搜索好友"
+    />
+  </div>
+
+  <div v-if="filteredContacts.length" class="mobile-list">
+    <div
+      v-for="(person, index) in filteredContacts"
+      :key="userId(person)"
+      class="mobile-list-row"
+    >
+      <span class="mobile-avatar" :class="{ warm: index % 3 === 1 }">
+        <img
+          v-if="personAvatar(person)"
+          :src="assetUrl(personAvatar(person))"
+          :alt="personName(person)"
+        />
+        <template v-else>{{ initials(personName(person)) }}</template>
+      </span>
+      <span class="mobile-row-copy">
+        <span class="mobile-row-main">
+          <strong class="mobile-row-title">{{ personName(person) || '未命名用户' }}</strong>
+        </span>
+        <span class="mobile-row-description">
+          {{ personPhone(person) || personEmail(person) || ('讯岛 ID · ' + userId(person)) }}
+        </span>
+      </span>
+      <span class="mobile-row-actions">
+        <button
+          class="icon-button"
+          type="button"
+          title="查看资料"
+          aria-label="查看资料"
+          @click="viewFriendInfo(person)"
+        >
+          <i data-lucide="user-round"></i>
+        </button>
+        <button
+          class="icon-button"
+          type="button"
+          title="发消息"
+          aria-label="发消息"
+          @click="selectUser(person)"
+        >
+          <i data-lucide="message-circle"></i>
+        </button>
+      </span>
+    </div>
+  </div>
+  <div v-else class="empty-mobile">
+    <div>
+      <span class="empty-mobile-icon"><i data-lucide="users-round"></i></span>
+      <strong>暂无好友</strong>
+      <span>搜索用户并发送好友申请</span>
+    </div>
+  </div>
+</div>

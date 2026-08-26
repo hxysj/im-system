@@ -6,6 +6,7 @@
     <title>讯岛 · IM 工作台</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
     <style>
       :root {
         --ink: #1f2937;
@@ -1516,6 +1517,7 @@
         }
       }
     </style>
+    <link rel="stylesheet" href="/asset/mobile.css?v=mobile-1" />
   </head>
   <body>
     <div id="app" v-cloak class="page-shell">
@@ -1536,12 +1538,12 @@
       // 先加载业务片段，再挂载 Vue，确保各模块共享同一个应用状态。
       ;(async function mountApp() {
         const modulePaths = [
-          ["/views/user/login.html", "#auth-module"],
-          ["/views/index/workspace.html", "#workspace-module"],
-          ["/views/message/index.html?v=layout-1", "#chat-module"],
-          ["/views/user/index.html", "#member-module"],
-          ["/views/community/index.html", "#community-module"],
-          ["/views/relation/index.html", "#request-module"],
+          ["/views/user/login.html?v=mobile-1", "#auth-module"],
+          ["/views/index/workspace.html?v=mobile-1", "#workspace-module"],
+          ["/views/message/index.html?v=mobile-1", "#chat-module"],
+          ["/views/user/index.html?v=mobile-1", "#member-module"],
+          ["/views/community/index.html?v=mobile-1", "#community-module"],
+          ["/views/relation/index.html?v=mobile-1", "#request-module"],
           ["/views/user/modal.html", "#member-modal-module"]
         ]
         const fragments = await Promise.all(
@@ -1586,7 +1588,9 @@
               loading: false,
               authError: "",
               currentView: "chat",
+              contactSection: "friends",
               searchText: "",
+              contactSearchText: "",
               userSearchKeyword: "",
               userSearchResult: null,
               userSearchLoading: false,
@@ -1613,6 +1617,8 @@
               communityForm: { name: "", desc: "" },
               selectedUser: null,
               messages: [],
+              messageLoading: false,
+              conversationPreviews: {},
               socket: null,
               socketConnected: false,
               toast: {
@@ -1651,12 +1657,24 @@
                       .includes(keyword))
               )
             },
+            filteredContacts() {
+              const keyword = this.contactSearchText.toLowerCase()
+              return this.friends.filter(
+                item =>
+                  this.userId(item) !== String(this.session.user.id) &&
+                  (!keyword ||
+                    this.personName(item).toLowerCase().includes(keyword) ||
+                    this.personPhone(item).includes(keyword) ||
+                    this.personEmail(item).toLowerCase().includes(keyword))
+              )
+            },
             pendingRequestCount() {
               return this.relationRequests.filter(item => this.requestCanAct(item)).length
             }
           },
           mounted() {
             this.loadEmojis()
+            this.renderIcons()
             const cached = sessionStorage.getItem("im-session")
             if (cached) {
               try {
@@ -1668,7 +1686,14 @@
               }
             }
           },
+          updated() {
+            this.renderIcons()
+          },
           methods: {
+            renderIcons() {
+              // 动态片段切换后重新渲染图标，避免条件视图出现空白按钮。
+              this.$nextTick(() => window.lucide?.createIcons())
+            },
             formBody(data) {
               return new URLSearchParams(
                 Object.entries(data).map(([key, value]) => [
@@ -1693,6 +1718,9 @@
             },
             personIdentity(person) {
               return String(person?.identity ?? person?.Identity ?? "")
+            },
+            personAvatar(person) {
+              return String(person?.avatar ?? person?.Avatar ?? "")
             },
             communityId(community) {
               return String(
@@ -1728,10 +1756,10 @@
                 .toUpperCase()
             },
             lastPreview(id) {
-              const item = this.messages.find(
-                message => message.targetId === id || message.fromId === id
-              )
-              return item ? item.content : "开始一段新对话"
+              return this.conversationPreviews[id]?.content || "开始一段新对话"
+            },
+            lastConversationTime(id) {
+              return this.conversationPreviews[id]?.time || ""
             },
             showToast(message, type = "success") {
               clearTimeout(this.toast.timer)
@@ -1832,6 +1860,8 @@
                   },
                   token: result.token || ""
                 }
+                this.currentView = "chat"
+                this.contactSection = "friends"
                 sessionStorage.setItem(
                   "im-session",
                   JSON.stringify(this.session)
@@ -1880,12 +1910,12 @@
                 payload.Rows = payload.data ?? payload.Data ?? payload.Rows
                 if (payload.Code !== 0) throw new Error("好友列表加载失败")
                 this.friends = Array.isArray(payload.Rows) ? payload.Rows : []
+                await this.loadConversationPreviews()
                 if (
-                  !this.selectedUser ||
+                  this.selectedUser &&
                   !this.friends.some(item => this.userId(item) === this.userId(this.selectedUser))
                 )
-                  this.selectedUser = this.filteredFriends[0] || null
-                if (this.selectedUser) this.connectSocket()
+                  this.closeConversation()
               } catch (error) {
                 this.showToast(
                   "好友列表加载失败，请确认好友关系已建立",
@@ -1894,6 +1924,44 @@
               } finally {
                 this.loading = false
               }
+            },
+            async loadConversationPreviews() {
+              const peers = this.friends.filter(
+                item => this.userId(item) !== String(this.session.user.id)
+              )
+              const previews = await Promise.all(
+                peers.map(async person => {
+                  const id = this.userId(person)
+                  try {
+                    const response = await api.get("/msg/getMessageList", {
+                      params: {
+                        target_id: id,
+                        message_type: 2,
+                        limit: 1,
+                        page: 1
+                      }
+                    })
+                    const payload = response.data || {}
+                    const list = payload.data ?? payload.Data ?? payload.Rows ?? []
+                    const latest = Array.isArray(list) ? list[0] : null
+                    if (!latest) return null
+                    const media = Number(latest.media ?? latest.Media ?? 1)
+                    const content = String(latest.content ?? latest.Content ?? "")
+                    return {
+                      id,
+                      content: media === 2 ? "[表情]" : media === 3 ? "[图片]" : content,
+                      time: this.formatMessageTime(latest.created_at ?? latest.CreatedAt)
+                    }
+                  } catch (error) {
+                    return null
+                  }
+                })
+              )
+              const next = { ...this.conversationPreviews }
+              previews.forEach(item => {
+                if (item) next[item.id] = { content: item.content, time: item.time }
+              })
+              this.conversationPreviews = next
             },
             // 搜索结果只展示，用户确认后才会发起添加好友请求。
             async searchUser() {
@@ -2074,6 +2142,7 @@
               }
             },
             async openRequests() {
+              this.contactSection = "requests"
               await this.openContacts()
             },
             async toggleRequest(item, status) {
@@ -2130,10 +2199,33 @@
               }
             },
             async openCommunities() {
+              this.contactSection = "groups"
               await this.openContacts()
             },
             async openContacts() {
+              if (this.socket) this.socket.close()
+              this.socket = null
+              this.socketConnected = false
+              this.selectedUser = null
+              this.messages = []
               this.currentView = "contacts"
+              await this.refreshContacts()
+            },
+            openSessions() {
+              if (this.socket) this.socket.close()
+              this.socket = null
+              this.socketConnected = false
+              this.selectedUser = null
+              this.messages = []
+              this.currentView = "chat"
+            },
+            async openProfile() {
+              if (this.socket) this.socket.close()
+              this.socket = null
+              this.socketConnected = false
+              this.selectedUser = null
+              this.messages = []
+              this.currentView = "profile"
               await this.refreshContacts()
             },
             async refreshContacts() {
@@ -2204,11 +2296,72 @@
                 this.communityJoining = false
               }
             },
-            selectUser(person) {
+            async selectUser(person) {
+              this.currentView = "chat"
               this.selectedUser = person
               this.messages = []
               this.emojiPanelOpen = false
+              await this.loadMessageHistory()
               this.connectSocket()
+            },
+            closeConversation() {
+              if (this.socket) this.socket.close()
+              this.socket = null
+              this.socketConnected = false
+              this.selectedUser = null
+              this.messages = []
+              this.emojiPanelOpen = false
+              this.currentView = "chat"
+            },
+            async loadMessageHistory() {
+              if (!this.selectedUser) return
+              const targetId = this.userId(this.selectedUser)
+              this.messageLoading = true
+              try {
+                // 历史消息沿用后端分页参数，首屏读取最近 30 条私聊记录。
+                const response = await api.get("/msg/getMessageList", {
+                  params: {
+                    target_id: targetId,
+                    message_type: 2,
+                    limit: 30,
+                    page: 1
+                  }
+                })
+                const payload = response.data || {}
+                if ((payload.code ?? payload.Code) !== 0)
+                  throw new Error(payload.msg || payload.message || "历史消息加载失败")
+                const list = payload.data ?? payload.Data ?? payload.Rows ?? []
+                if (!Array.isArray(list)) throw new Error("历史消息响应格式错误")
+                this.messages = list
+                  .slice()
+                  .reverse()
+                  .map(item => ({
+                    id: String(item.message_id ?? item.MessageId ?? `${Date.now()}-${Math.random()}`),
+                    content: String(item.content ?? item.Content ?? ""),
+                    media: Number(item.media ?? item.Media ?? 1),
+                    url: String(item.url ?? item.Url ?? ""),
+                    mine: Boolean(item.is_self ?? item.IsSelf),
+                    targetId,
+                    time: this.formatMessageTime(item.created_at ?? item.CreatedAt)
+                  }))
+                const latest = this.messages[this.messages.length - 1]
+                if (latest)
+                  this.updateConversationPreview(
+                    targetId,
+                    latest.content,
+                    latest.media,
+                    latest.time
+                  )
+                this.scrollMessages()
+              } catch (error) {
+                this.messages = []
+                this.showToast(
+                  error.response?.data?.msg || error.message || "历史消息加载失败",
+                  "error"
+                )
+              } finally {
+                this.messageLoading = false
+              }
             },
             connectSocket() {
               if (!this.selectedUser || !this.session.user || !this.session.token) return
@@ -2231,24 +2384,35 @@
                 this.socketConnected = false
               }
               this.socket.onmessage = event => {
+                if (event.data === "欢迎进入im-system系统的聊天室！") return
                 let content = event.data
                 let media = 1
                 let url = ""
+                let fromId = ""
                 try {
                   const payload = JSON.parse(event.data)
                   content = payload.Content || payload.content || event.data
                   media = Number(payload.Media || payload.media || 1)
                   // 表情消息的图片地址由后端透传在 url 字段中
                   url = payload.Url || payload.url || ""
+                  fromId = String(payload.FromId || payload.fromId || payload.from_id || "")
                 } catch (error) {}
+                const selectedId = this.userId(this.selectedUser)
+                const conversationId = fromId || selectedId
+                const time = this.timeNow()
+                this.updateConversationPreview(conversationId, content, media, time)
+                if (fromId && fromId !== selectedId) {
+                  this.showToast("收到一条新消息")
+                  return
+                }
                 this.messages.push({
                   id: `${Date.now()}-${Math.random()}`,
                   content,
                   media,
                   url,
                   mine: false,
-                  targetId: this.userId(this.selectedUser),
-                  time: this.timeNow()
+                  targetId: selectedId,
+                  time
                 })
                 this.scrollMessages()
               }
@@ -2275,6 +2439,7 @@
                 return
               }
               this.socket.send(JSON.stringify(packet))
+              const time = this.timeNow()
               this.messages.push({
                 id: `${Date.now()}-${Math.random()}`,
                 content,
@@ -2283,8 +2448,14 @@
                 url,
                 mine: true,
                 targetId: this.userId(this.selectedUser),
-                time: this.timeNow()
+                time
               })
+              this.updateConversationPreview(
+                this.userId(this.selectedUser),
+                content,
+                media,
+                time
+              )
               if (media === 1) this.draft = ""
               this.emojiPanelOpen = false
               this.scrollMessages()
@@ -2294,6 +2465,23 @@
                 hour: "2-digit",
                 minute: "2-digit"
               })
+            },
+            formatMessageTime(value) {
+              if (!value) return ""
+              const date = new Date(value)
+              if (Number.isNaN(date.getTime())) return ""
+              return date.toLocaleTimeString("zh-CN", {
+                hour: "2-digit",
+                minute: "2-digit"
+              })
+            },
+            updateConversationPreview(id, content, media, time) {
+              if (!id) return
+              const preview = media === 2 ? "[表情]" : media === 3 ? "[图片]" : content
+              this.conversationPreviews = {
+                ...this.conversationPreviews,
+                [id]: { content: preview || "新消息", time }
+              }
             },
             scrollMessages() {
               this.$nextTick(() => {
@@ -2329,6 +2517,9 @@
                 this.userSearchResult = null
                 this.selectedUser = null
                 this.messages = []
+                this.conversationPreviews = {}
+                this.currentView = "chat"
+                this.contactSection = "friends"
                 this.showToast(message, type)
               }
             },

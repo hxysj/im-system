@@ -1,72 +1,118 @@
-<div v-if="currentView === 'chat'" class="chat-layout">
-  <section class="contact-pane">
-    <div class="contact-head">
-      <h3>
-        联系人
-        <span style="color: #9aa9a0; font-weight: 400"
-          >· {{ filteredFriends.length }}</span
-        >
-      </h3>
-      <input
-        v-model.trim="searchText"
-        class="search-input"
-        type="search"
-        placeholder="搜索用户名"
-      />
+<section v-if="currentView === 'chat' && !selectedUser" class="mobile-screen">
+  <header class="mobile-page-header">
+    <div class="mobile-title-block">
+      <span class="mobile-eyebrow">{{ socketConnected ? '实时通道已连接' : '即时通讯' }}</span>
+      <h1 class="mobile-page-title">会话</h1>
     </div>
-    <div class="contact-list">
+    <button
+      class="icon-button"
+      type="button"
+      title="刷新会话"
+      aria-label="刷新会话"
+      :disabled="loading"
+      @click="refreshFriends"
+    >
+      <i data-lucide="refresh-cw"></i>
+    </button>
+  </header>
+
+  <div class="mobile-search-wrap">
+    <span class="inline-icon"><i data-lucide="search"></i></span>
+    <input
+      v-model.trim="searchText"
+      class="mobile-search-input"
+      type="search"
+      placeholder="搜索会话"
+    />
+  </div>
+
+  <div class="mobile-scroll">
+    <div v-if="filteredFriends.length" class="session-list">
       <button
-        v-for="person in filteredFriends"
+        v-for="(person, index) in filteredFriends"
         :key="userId(person)"
-        class="contact-row"
-        :class="{ active: selectedUser && userId(selectedUser) === userId(person) }"
+        class="session-row"
         type="button"
         @click="selectUser(person)"
       >
-        <span class="avatar">{{ initials(personName(person)) }}</span
-        ><span class="contact-copy"
-          ><span class="contact-name">{{ personName(person) || '未命名用户' }}</span
-          ><span class="contact-preview"
-            >{{ lastPreview(userId(person)) }}</span
-          ></span
-        ><span class="contact-id">#{{ userId(person) }}</span>
+        <span class="mobile-avatar" :class="{ warm: index % 3 === 1 }">
+          <img
+            v-if="personAvatar(person)"
+            :src="assetUrl(personAvatar(person))"
+            :alt="personName(person)"
+          />
+          <template v-else>{{ initials(personName(person)) }}</template>
+          <span class="presence-dot"></span>
+        </span>
+        <span class="session-copy">
+          <span class="session-main-line">
+            <strong class="session-name">{{ personName(person) || '未命名用户' }}</strong>
+            <span class="session-time">{{ lastConversationTime(userId(person)) }}</span>
+          </span>
+          <span class="session-preview">{{ lastPreview(userId(person)) }}</span>
+        </span>
       </button>
-      <div v-if="!filteredFriends.length" class="empty-state">
-        <div><strong>暂无联系人</strong><span>刷新后再试试</span></div>
+    </div>
+    <div v-else class="empty-mobile">
+      <div>
+        <span class="empty-mobile-icon"><i data-lucide="message-circle-more"></i></span>
+        <strong>{{ searchText ? '没有匹配的会话' : '还没有会话' }}</strong>
+        <span>{{ searchText ? '换个关键词试试' : '从通讯录添加好友后开始聊天' }}</span>
       </div>
     </div>
-  </section>
-  <section class="chat-pane">
-    <div class="chat-head">
-      <div v-if="selectedUser" class="chat-user">
-        <span class="avatar">{{ initials(personName(selectedUser)) }}</span>
-        <div>
-          <strong>{{ personName(selectedUser) || '未命名用户' }}</strong
-          ><span>用户 ID {{ userId(selectedUser) }} · 点对点连接</span>
-        </div>
+  </div>
+</section>
+
+<section v-else-if="currentView === 'chat' && selectedUser" class="chat-screen">
+  <header class="chat-mobile-header">
+    <button
+      class="icon-button"
+      type="button"
+      title="返回会话"
+      aria-label="返回会话"
+      @click="closeConversation"
+    >
+      <i data-lucide="chevron-left"></i>
+    </button>
+    <div class="chat-person">
+      <span class="mobile-avatar">
+        <img
+          v-if="personAvatar(selectedUser)"
+          :src="assetUrl(personAvatar(selectedUser))"
+          :alt="personName(selectedUser)"
+        />
+        <template v-else>{{ initials(personName(selectedUser)) }}</template>
+      </span>
+      <div class="chat-person-copy">
+        <strong>{{ personName(selectedUser) || '未命名用户' }}</strong>
+        <span>{{ socketConnected ? '在线 · 实时连接' : '正在连接...' }}</span>
       </div>
-      <div v-else class="chat-user">
-        <span class="avatar">?</span>
-        <div><strong>选择联系人</strong><span>从左侧选择一位成员</span></div>
-      </div>
-      <span class="socket-tag" :class="{ connected: socketConnected }"
-        >{{ socketConnected ? '● 已连接' : '○ 未连接' }}</span
-      >
     </div>
-    <div ref="messageStream" class="message-stream">
-      <div v-if="!selectedUser || !messages.length" class="empty-state">
-        <div>
-          <strong
-            >{{ selectedUser ? '开始一段新的对话' : '还没有打开对话' }}</strong
-          ><span
-            >{{ selectedUser ? '发送第一条消息，它会通过实时通道抵达。' :
-            '选择联系人后，消息内容会显示在这里。' }}</span
-          >
-        </div>
+    <button
+      class="icon-button"
+      type="button"
+      title="查看资料"
+      aria-label="查看资料"
+      @click="viewFriendInfo(selectedUser)"
+    >
+      <i data-lucide="user-round"></i>
+    </button>
+  </header>
+
+  <div ref="messageStream" class="message-stream">
+    <div v-if="messageLoading" class="empty-mobile">
+      <div><strong>正在加载历史消息</strong></div>
+    </div>
+    <div v-else-if="!messages.length" class="empty-mobile">
+      <div>
+        <span class="empty-mobile-icon"><i data-lucide="sparkles"></i></span>
+        <strong>开始一段新对话</strong>
+        <span>消息将通过实时通道送达</span>
       </div>
+    </div>
+    <template v-else>
       <div
         v-for="item in messages"
-        v-else
         :key="item.id"
         class="message-item"
         :class="{ mine: item.mine }"
@@ -83,111 +129,80 @@
               v-if="item.media === 2 || item.media === 3"
               :class="item.media === 2 ? 'message-emoji' : 'message-image'"
               :src="assetUrl(item.url)"
-              :alt="item.name || (item.media === 3 ? 'image' : 'emoji')"
+              :alt="item.name || (item.media === 3 ? '图片' : '表情')"
             />
             <span v-else>{{ item.content }}</span>
           </div>
-          <div class="message-meta">
-            {{ item.mine ? '我' : (selectedUser ? personName(selectedUser) : '系统') }}
-            · {{ item.time }}
-          </div>
+          <div class="message-meta">{{ item.mine ? '我' : personName(selectedUser) }} · {{ item.time }}</div>
         </div>
+      </div>
+    </template>
+  </div>
+
+  <form class="composer" @submit.prevent="sendMessage">
+    <button
+      class="icon-button"
+      type="button"
+      title="发送图片"
+      aria-label="发送图片"
+      :disabled="uploadingImage"
+      @click="$refs.imageInput.click()"
+    >
+      <i data-lucide="image-plus"></i>
+    </button>
+    <input
+      ref="imageInput"
+      class="image-input"
+      type="file"
+      accept="image/*"
+      @change="uploadImage"
+    />
+    <button
+      class="icon-button"
+      type="button"
+      title="选择表情"
+      aria-label="选择表情"
+      @click="toggleEmojiPanel"
+    >
+      <i data-lucide="smile-plus"></i>
+    </button>
+    <textarea
+      v-model.trim="draft"
+      class="composer-input"
+      rows="1"
+      placeholder="输入消息"
+      @keydown.enter.exact.prevent="sendMessage"
+    ></textarea>
+    <button
+      class="icon-button accent"
+      type="submit"
+      title="发送消息"
+      aria-label="发送消息"
+      :disabled="!draft"
+    >
+      <i data-lucide="send-horizontal"></i>
+    </button>
+
+    <div v-if="emojiPanelOpen" class="emoji-panel">
+      <div class="emoji-panel-head">
+        <span>表情包</span><span>{{ emojis.length }}</span>
+      </div>
+      <div v-if="emojiLoading" class="emoji-empty">正在加载表情</div>
+      <div v-else-if="emojiError" class="emoji-empty">{{ emojiError }}</div>
+      <div v-else-if="!emojis.length" class="emoji-empty">暂无表情</div>
+      <div v-else class="emoji-grid">
+        <button
+          v-for="emoji in emojis"
+          :key="emoji.id"
+          class="emoji-option"
+          type="button"
+          :title="emoji.name"
+          :aria-label="emoji.name"
+          @click="sendEmoji(emoji)"
+        >
+          <img :src="assetUrl(emoji.file)" :alt="emoji.name" />
+        </button>
       </div>
     </div>
-    <form class="composer" @submit.prevent="sendMessage">
-      <div class="composer-tools">
-        <button
-          class="composer-icon-button"
-          type="button"
-          :disabled="!selectedUser"
-          title="更多表情"
-          aria-label="更多表情"
-          @click="toggleEmojiPanel"
-        >
-          ◇
-        </button>
-        <button
-          class="image-button"
-          type="button"
-          :disabled="!selectedUser || uploadingImage"
-          title="发送图片"
-          aria-label="发送图片"
-          @click="$refs.imageInput.click()"
-        >
-          ▧
-        </button>
-        <input
-          ref="imageInput"
-          class="image-input"
-          type="file"
-          accept="image/*"
-          @change="uploadImage"
-        />
-        <button
-          class="composer-icon-button"
-          type="button"
-          :disabled="!selectedUser"
-          title="剪贴工具"
-          aria-label="剪贴工具"
-          @click="showToast('剪贴工具暂未开放', 'error')"
-        >
-          ✂
-        </button><span class="toolbar-caret">⌄</span>
-        <button
-          class="emoji-button"
-          :class="{ active: emojiPanelOpen }"
-          type="button"
-          :disabled="!selectedUser"
-          title="选择表情"
-          aria-label="选择表情"
-          @click="toggleEmojiPanel"
-        >
-          ☺
-        </button>
-        <div v-if="emojiPanelOpen" class="emoji-panel">
-          <div class="emoji-panel-head">
-            <span>表情包</span><span>{{ emojis.length }}</span>
-          </div>
-          <div v-if="emojiLoading" class="emoji-empty">正在加载表情</div>
-          <div v-else-if="emojiError" class="emoji-empty">{{ emojiError }}</div>
-          <div v-else-if="!emojis.length" class="emoji-empty">暂无表情</div>
-          <div v-else class="emoji-grid">
-            <button
-              v-for="emoji in emojis"
-              :key="emoji.id"
-              class="emoji-option"
-              type="button"
-              :title="emoji.name"
-              :aria-label="emoji.name"
-              @click="sendEmoji(emoji)"
-            >
-              <img :src="assetUrl(emoji.file)" :alt="emoji.name" />
-            </button>
-          </div>
-        </div>
-      </div>
-      <textarea
-        v-model.trim="draft"
-        :disabled="!selectedUser"
-        placeholder="写下消息，按 Enter 旁的发送键"
-        @keydown.enter.exact.prevent="sendMessage"
-      ></textarea
-      ><button
-        class="voice-button"
-        type="button"
-        :disabled="!selectedUser"
-        title="语音输入"
-        aria-label="语音输入"
-        @click="showToast('语音输入暂未开放', 'error')"
-      >
-        ♫
-      </button><span class="toolbar-divider"></span><button
-        class="send-button"
-        type="submit"
-        :disabled="!selectedUser || !draft"
-      >
-        发送
-      </button>
-    </form>
-  </section>
-</div>
+  </form>
+</section>

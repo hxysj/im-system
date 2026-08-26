@@ -1,111 +1,164 @@
-<section v-else class="workspace">
-  <header class="topbar">
-    <div class="topbar-brand">
-      <span class="brand-mark">讯</span><span>讯岛工作台</span>
-    </div>
-    <div class="topbar-meta">
-      <div class="connection-state">
-        <span class="live-dot"></span><span>API 服务正常</span>
-      </div>
-      <div class="profile-chip">
-        <span class="avatar">{{ initials(session.user.name) }}</span>
-        <div>
-          <div class="profile-name">{{ session.user.name }}</div>
-          <div class="profile-role">ID · {{ session.user.id }}</div>
+<section v-else class="mobile-app">
+  <div v-if="loading" class="loading-line"></div>
+  <main class="mobile-main">
+    <div id="chat-module"></div>
+    <section v-if="currentView === 'contacts'" class="contact-screen">
+      <header class="mobile-page-header compact">
+        <div class="mobile-title-block">
+          <span class="mobile-eyebrow">联系人与群聊</span>
+          <h1 class="mobile-page-title">通讯录</h1>
         </div>
-      </div>
-      <button class="ghost-button" type="button" @click="openEditProfile">
-        编辑资料
-      </button>
-      <button class="ghost-button" type="button" @click="openPasswordModal">
-        修改密码
-      </button>
-      <button class="danger-button" type="button" @click="deactivateAccount">
-        注销账号
-      </button>
-      <button class="ghost-button" type="button" @click="logout">退出</button>
-    </div>
-  </header>
-  <div class="workspace-body">
-    <aside class="sidebar">
-      <p class="sidebar-label">Workspace</p>
-      <button
-        class="nav-button"
-        :class="{ active: currentView === 'chat' }"
-        type="button"
-        @click="currentView = 'chat'"
-      >
-        <span class="nav-icon">◌</span><span>消息</span>
-      </button>
-      <button
-        class="nav-button"
-        :class="{ active: currentView === 'contacts' }"
-        type="button"
-        @click="openContacts"
-      >
-        <span class="nav-icon">♧</span><span>通讯录</span>
-        <span v-if="pendingRequestCount" class="nav-badge"
-          >{{ pendingRequestCount }}</span
+        <button
+          class="icon-button"
+          type="button"
+          title="刷新通讯录"
+          aria-label="刷新通讯录"
+          :disabled="loading"
+          @click="refreshContacts"
         >
-      </button>
-      <div class="sidebar-note">
-        <strong>实时通道</strong
-        ><span>连接到服务端后，消息会通过 WebSocket 即时送达。</span>
+          <i data-lucide="refresh-cw"></i>
+        </button>
+      </header>
+      <div class="segmented-tabs" role="tablist" aria-label="通讯录分类">
+        <button
+          class="segmented-tab"
+          :class="{ active: contactSection === 'friends' }"
+          type="button"
+          @click="contactSection = 'friends'"
+        >
+          好友 {{ friends.length }}
+        </button>
+        <button
+          class="segmented-tab"
+          :class="{ active: contactSection === 'groups' }"
+          type="button"
+          @click="contactSection = 'groups'"
+        >
+          群聊 {{ communities.length }}
+        </button>
+        <button
+          class="segmented-tab"
+          :class="{ active: contactSection === 'requests' }"
+          type="button"
+          @click="contactSection = 'requests'"
+        >
+          申请 {{ pendingRequestCount }}
+        </button>
       </div>
-    </aside>
-    <main class="main-panel">
-      <section
-        v-if="currentView !== 'contacts'"
-        class="workspace-summary"
-      >
-        <div class="page-heading">
-          <div>
-            <h2>{{ currentView === 'chat' ? '消息中心' : '通讯录' }}</h2>
-            <p>
-              {{ currentView === 'chat' ? '选择一位好友，开始一段私密对话。' :
-              '好友、群聊和申请记录统一在通讯录中管理。' }}
-            </p>
-          </div>
-          <div class="heading-action">
-            <button
-              class="ghost-button"
-              type="button"
-              @click="refreshFriends"
-              :disabled="loading"
-            >
-              ↻ 刷新数据
-            </button>
-          </div>
-        </div>
-        <div class="metric-row">
-          <div class="metric-card">
-            <div class="metric-label">好友数量</div>
-            <div class="metric-value">{{ friends.length }}</div>
-            <div class="metric-caption">已建立好友关系</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">在线状态</div>
-            <div class="metric-value">
-              {{ socketConnected ? '在线' : '待连接' }}
-            </div>
-            <div class="metric-caption">WebSocket 通道</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">本次会话</div>
-            <div class="metric-value">{{ messages.length }}</div>
-            <div class="metric-caption">已收发消息</div>
-          </div>
-        </div>
-      </section>
-      <section
-        class="workspace-content"
-        :class="{ 'contacts-content': currentView === 'contacts' }"
-      >
-        <div id="chat-module"></div>
+      <div class="mobile-scroll">
         <div id="member-module"></div>
         <div id="community-module"></div>
         <div id="request-module"></div>
-      </section>
-    </main>
-  </div>
+      </div>
+    </section>
+
+    <section v-if="currentView === 'profile'" class="profile-screen">
+      <div class="mobile-scroll">
+        <header class="profile-hero">
+          <span class="mobile-avatar large dark">
+            {{ initials(session.user.name) }}
+          </span>
+          <div class="profile-hero-copy">
+            <h1>{{ session.user.name || '未命名用户' }}</h1>
+            <p>讯岛 ID · {{ session.user.id }}</p>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            title="编辑资料"
+            aria-label="编辑资料"
+            @click="openEditProfile"
+          >
+            <i data-lucide="square-pen"></i>
+          </button>
+        </header>
+
+        <div class="profile-stats">
+          <div class="profile-stat">
+            <strong>{{ friends.length }}</strong><span>好友</span>
+          </div>
+          <div class="profile-stat">
+            <strong>{{ communities.length }}</strong><span>群聊</span>
+          </div>
+          <div class="profile-stat">
+            <strong>{{ pendingRequestCount }}</strong><span>待处理</span>
+          </div>
+        </div>
+
+        <p class="profile-section-label">账号设置</p>
+        <div class="profile-action-list">
+          <button class="profile-action" type="button" @click="openEditProfile">
+            <span class="action-icon"><i data-lucide="user-round-pen"></i></span>
+            <span class="action-copy">
+              <strong>个人资料</strong><span>用户名、手机号与邮箱</span>
+            </span>
+            <span class="action-chevron"><i data-lucide="chevron-right"></i></span>
+          </button>
+          <button class="profile-action" type="button" @click="openPasswordModal">
+            <span class="action-icon"><i data-lucide="key-round"></i></span>
+            <span class="action-copy">
+              <strong>修改密码</strong><span>更新当前账号登录密码</span>
+            </span>
+            <span class="action-chevron"><i data-lucide="chevron-right"></i></span>
+          </button>
+          <button class="profile-action" type="button" @click="refreshContacts">
+            <span class="action-icon"><i data-lucide="refresh-cw"></i></span>
+            <span class="action-copy">
+              <strong>同步数据</strong><span>刷新好友、群聊和申请</span>
+            </span>
+            <span class="action-chevron"><i data-lucide="chevron-right"></i></span>
+          </button>
+        </div>
+
+        <p class="profile-section-label">登录与安全</p>
+        <div class="profile-action-list">
+          <button class="profile-action" type="button" @click="logout">
+            <span class="action-icon"><i data-lucide="log-out"></i></span>
+            <span class="action-copy">
+              <strong>退出登录</strong><span>结束当前设备上的会话</span>
+            </span>
+            <span class="action-chevron"><i data-lucide="chevron-right"></i></span>
+          </button>
+          <button class="profile-action destructive" type="button" @click="deactivateAccount">
+            <span class="action-icon"><i data-lucide="user-round-x"></i></span>
+            <span class="action-copy">
+              <strong>注销账号</strong><span>删除账号与个人资料</span>
+            </span>
+            <span class="action-chevron"><i data-lucide="chevron-right"></i></span>
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav v-if="!selectedUser" class="bottom-tabs" aria-label="主导航">
+    <button
+      class="bottom-tab"
+      :class="{ active: currentView === 'chat' }"
+      type="button"
+      @click="openSessions"
+    >
+      <span class="tab-icon"><i data-lucide="messages-square"></i></span>
+      <span>会话</span>
+    </button>
+    <button
+      class="bottom-tab"
+      :class="{ active: currentView === 'contacts' }"
+      type="button"
+      @click="openContacts"
+    >
+      <span class="tab-icon"><i data-lucide="contact-round"></i></span>
+      <span>通讯录</span>
+      <span v-if="pendingRequestCount" class="tab-badge">{{ pendingRequestCount }}</span>
+    </button>
+    <button
+      class="bottom-tab"
+      :class="{ active: currentView === 'profile' }"
+      type="button"
+      @click="openProfile"
+    >
+      <span class="tab-icon"><i data-lucide="circle-user-round"></i></span>
+      <span>个人中心</span>
+    </button>
+  </nav>
 </section>

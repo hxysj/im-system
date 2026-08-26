@@ -1,84 +1,79 @@
 <section v-if="!session.user" class="auth-layout">
-        <div class="auth-intro">
-          <div class="brand-lockup">
-            <span class="brand-mark">讯</span><span>讯岛 / IM SYSTEM</span>
-          </div>
-          <div class="intro-copy">
-            <p class="eyebrow">A quieter way to connect</p>
-            <h1>让每一次<br />对话都有回应。</h1>
-            <p>
-              一个面向团队的轻量即时通讯工作台。管理联系人，保持在线，并把重要消息留在同一条轨道上。
-            </p>
-          </div>
-          <div class="intro-foot">
-            <span class="live-dot"></span
-            ><span>服务端接口已接入 · WebSocket ready</span>
-          </div>
+  <div class="auth-mobile-brand">
+    <span class="auth-mobile-mark">讯</span>
+    <div><strong>讯岛</strong><span>IM SYSTEM · 保持连接</span></div>
+  </div>
+
+  <div class="auth-mobile-intro">
+    <h1>{{ authMode === 'login' ? '欢迎回来。' : '创建你的讯岛账号。' }}</h1>
+    <p>
+      {{ authMode === 'login' ? '登录后继续你的会话、联系人和群聊。' :
+      '注册完成后即可添加好友并使用实时消息。' }}
+    </p>
+  </div>
+
+  <div class="auth-panel">
+    <div class="auth-card">
+      <h2>{{ authMode === 'login' ? '账号登录' : '注册账号' }}</h2>
+      <p class="auth-subtitle">
+        {{ authMode === 'login' ? '使用用户名和密码进入。' : '请设置用户名与登录密码。' }}
+      </p>
+      <div class="auth-tabs">
+        <button
+          class="auth-tab"
+          :class="{ active: authMode === 'login' }"
+          type="button"
+          @click="authMode = 'login'; authError = ''"
+        >
+          登录
+        </button>
+        <button
+          class="auth-tab"
+          :class="{ active: authMode === 'register' }"
+          type="button"
+          @click="authMode = 'register'; authError = ''"
+        >
+          注册
+        </button>
+      </div>
+      <form @submit.prevent="submitAuth">
+        <div class="field">
+          <label for="auth-name">用户名</label>
+          <input
+            id="auth-name"
+            v-model.trim="authForm.name"
+            autocomplete="username"
+            placeholder="输入用户名"
+            required
+          />
         </div>
-        <div class="auth-panel">
-          <div class="auth-card">
-            <h2>{{ authMode === 'login' ? '欢迎回来' : '创建账号' }}</h2>
-            <p class="auth-subtitle">
-              {{ authMode === 'login' ? '登录后进入你的消息工作台。' :
-              '注册一个账号，开始使用讯岛。' }}
-            </p>
-            <div class="auth-tabs">
-              <button
-                class="auth-tab"
-                :class="{ active: authMode === 'login' }"
-                type="button"
-                @click="authMode = 'login'; authError = ''"
-              >
-                登录
-              </button>
-              <button
-                class="auth-tab"
-                :class="{ active: authMode === 'register' }"
-                type="button"
-                @click="authMode = 'register'; authError = ''"
-              >
-                注册
-              </button>
-            </div>
-            <form @submit.prevent="submitAuth">
-              <div class="field">
-                <label for="auth-name">用户名</label
-                ><input
-                  id="auth-name"
-                  v-model.trim="authForm.name"
-                  autocomplete="username"
-                  placeholder="输入用户名"
-                  required
-                />
-              </div>
-              <div class="field">
-                <label for="auth-password">密码</label
-                ><input
-                  id="auth-password"
-                  v-model="authForm.password"
-                  :autocomplete="authMode === 'login' ? 'current-password' : 'new-password'"
-                  type="password"
-                  placeholder="输入密码"
-                  required
-                />
-              </div>
-              <div v-if="authMode === 'register'" class="field">
-                <label for="auth-repassword">确认密码</label
-                ><input
-                  id="auth-repassword"
-                  v-model="authForm.repassword"
-                  autocomplete="new-password"
-                  type="password"
-                  placeholder="再次输入密码"
-                  required
-                />
-              </div>
-              <button class="primary-button" type="submit" :disabled="loading">
-                {{ loading ? '处理中…' : (authMode === 'login' ? '进入工作台' :
-                '注册并登录') }}
-              </button>
-            </form>
-            <p class="form-hint">{{ authError }}</p>
-          </div>
+        <div class="field">
+          <label for="auth-password">密码</label>
+          <input
+            id="auth-password"
+            v-model="authForm.password"
+            :autocomplete="authMode === 'login' ? 'current-password' : 'new-password'"
+            type="password"
+            placeholder="输入密码"
+            required
+          />
         </div>
-      </section>
+        <div v-if="authMode === 'register'" class="field">
+          <label for="auth-repassword">确认密码</label>
+          <input
+            id="auth-repassword"
+            v-model="authForm.repassword"
+            autocomplete="new-password"
+            type="password"
+            placeholder="再次输入密码"
+            required
+          />
+        </div>
+        <button class="primary-button" type="submit" :disabled="loading">
+          {{ loading ? '处理中...' : (authMode === 'login' ? '登录' : '注册账号') }}
+        </button>
+      </form>
+      <p class="form-hint">{{ authError }}</p>
+    </div>
+  </div>
+</section>
