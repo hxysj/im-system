@@ -12,5 +12,7 @@ func RegisterMessageRoutes(r *gin.RouterGroup) {
 		message.GET("/sendMsg", service.SendMsg)
 		// 获取表情包列表
 		message.GET("/getEmojiList", service.GetEmojiList)
+		// 获取消息列表
+		message.GET("/getMessageList", service.GetMessageList)
 	}
 }

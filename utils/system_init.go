@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	DB *gorm.DB
+	DB  *gorm.DB
 	Red *redis.Client
 )
 
@@ -47,18 +47,18 @@ func InitMysql() error {
 		},
 	)
 
-	port,_ := strconv.Atoi(viper.GetString("mysql.port"))
+	port, _ := strconv.Atoi(viper.GetString("mysql.port"))
 
 	dbConfig := driverMysql.Config{
-		User: viper.GetString("mysql.user"),
-		Passwd: viper.GetString("mysql.password"),
-		Net: "tcp",
-		Addr: fmt.Sprintf("%s:%d",viper.GetString("mysql.ip"),port),
-		DBName: viper.GetString("mysql.database"),
+		User:      viper.GetString("mysql.user"),
+		Passwd:    viper.GetString("mysql.password"),
+		Net:       "tcp",
+		Addr:      fmt.Sprintf("%s:%d", viper.GetString("mysql.ip"), port),
+		DBName:    viper.GetString("mysql.database"),
 		ParseTime: true,
-		Loc:time.Local,
+		Loc:       time.Local,
 		Params: map[string]string{
-			"charset":"utf8mb4",
+			"charset": "utf8mb4",
 		},
 	}
 
@@ -78,38 +78,38 @@ func InitMysql() error {
 	return nil
 }
 
-func InitRedis(){
+func InitRedis() {
 	Red = redis.NewClient(&redis.Options{
-		Addr: viper.GetString("redis.Addr"),
-		DB: viper.GetInt("redis.DB"),
-		Password: viper.GetString("redis.password"),
-		PoolSize: viper.GetInt("redis.poolSize"),
+		Addr:         viper.GetString("redis.Addr"),
+		DB:           viper.GetInt("redis.DB"),
+		Password:     viper.GetString("redis.password"),
+		PoolSize:     viper.GetInt("redis.poolSize"),
 		MinIdleConns: viper.GetInt("redis.minIdleCoon"),
 	})
 
-	pong,err := Red.Ping(context.Background()).Result()
+	pong, err := Red.Ping(context.Background()).Result()
 
-	if err != nil{
-		fmt.Println("【redis】init redis error ....",err)
-	}else{
-		fmt.Println("【redis】ping redis is success ...",pong)
+	if err != nil {
+		fmt.Println("【redis】init redis error ....", err)
+	} else {
+		fmt.Println("【redis】ping redis is success ...", pong)
 	}
 }
 
 var PublishKey = "publish_key"
 
 // 发布消息到redis上
-func Publish(ctx context.Context,channel string,msg string) error {
+func Publish(ctx context.Context, channel string, msg string) error {
 	var err error
-	fmt.Println("publish message ...",msg)
-	err = Red.Publish(ctx,channel,msg).Err()
+	fmt.Println("publish message ...", msg)
+	err = Red.Publish(ctx, channel, msg).Err()
 	return err
 }
 
 // 订阅redis上的消息
-func Subscribe(ctx context.Context,channel string) (string, error){
-	sub := Red.Subscribe(ctx,channel)
-	msg,err := sub.ReceiveMessage(ctx)
-	fmt.Println("Subscribe...",msg.Payload)
-	return msg.Payload,err
+func Subscribe(ctx context.Context, channel string) (string, error) {
+	sub := Red.Subscribe(ctx, channel)
+	msg, err := sub.ReceiveMessage(ctx)
+	fmt.Println("Subscribe...", msg.Payload)
+	return msg.Payload, err
 }

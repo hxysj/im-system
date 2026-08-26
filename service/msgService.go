@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,40 +16,40 @@ import (
 
 // 防止跨域站点伪造请求
 var upGrade = websocket.Upgrader{
-	CheckOrigin:func(r *http.Request) bool{
+	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
 }
 
-func SendMsg(c *gin.Context){
-	ws,err := upGrade.Upgrade(c.Writer,c.Request,nil)
-	if err != nil{
+func SendMsg(c *gin.Context) {
+	ws, err := upGrade.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	defer func(ws *websocket.Conn){
+	defer func(ws *websocket.Conn) {
 		err = ws.Close()
-		if err != nil{
+		if err != nil {
 			fmt.Println(err)
 		}
 	}(ws)
 
-	MsgHandler(ws,c)
+	MsgHandler(ws, c)
 }
 
-func MsgHandler(ws *websocket.Conn,c *gin.Context){
+func MsgHandler(ws *websocket.Conn, c *gin.Context) {
 	for {
-		msg,err := utils.Subscribe(c,utils.PublishKey)
-		if err != nil{
+		msg, err := utils.Subscribe(c, utils.PublishKey)
+		if err != nil {
 			fmt.Println(err)
 		}
-		fmt.Println("发送消息 ",msg)
+		fmt.Println("发送消息 ", msg)
 		tm := time.Now().Format("2006-01-02 15:04:05")
-		m := fmt.Sprintf("[ws][%s]:%s",tm,msg)
-		err = ws.WriteMessage(1,[]byte(m))
+		m := fmt.Sprintf("[ws][%s]:%s", tm, msg)
+		err = ws.WriteMessage(1, []byte(m))
 
-		if err != nil{
+		if err != nil {
 			fmt.Println(err)
 		}
 	}
@@ -71,17 +72,16 @@ func MsgHandler(ws *websocket.Conn,c *gin.Context){
 // 	MsgHandler(ws,ctx)
 // }
 
-// 
-func Chat(ctx *gin.Context){
-	models.Chat(ctx.Writer,ctx.Request)
+func Chat(ctx *gin.Context) {
+	models.Chat(ctx.Writer, ctx.Request)
 }
 
-type EmojiInfo struct{
+type EmojiInfo struct {
 	Emojis []Emoji `json:"emojis"`
 }
 
-type Emoji struct{
-	ID int `json:"id"`
+type Emoji struct {
+	ID   int    `json:"id"`
 	Name string `json:"name"`
 	File string `json:"file"`
 }
@@ -91,38 +91,63 @@ type Emoji struct{
 // @Tags 消息模块
 // Success 200 {string} json{"code","message"}
 // @Router /msg/getEmojiList [get]
-func GetEmojiList(ctx *gin.Context){
+func GetEmojiList(ctx *gin.Context) {
 	// 读取文件，获取文件内容
-	content,err := os.ReadFile("asset/emoji/info.json")
-	if err !=nil{
+	content, err := os.ReadFile("asset/emoji/info.json")
+	if err != nil {
 		fmt.Println(err)
-		utils.RespFail(ctx.Writer,"获取表情包失败！")
+		utils.RespFail(ctx.Writer, "获取表情包失败！")
 		return
 	}
 	var Result EmojiInfo
-	err = json.Unmarshal(content,&Result)
-	if err !=nil{
+	err = json.Unmarshal(content, &Result)
+	if err != nil {
 		fmt.Println(err)
-		utils.RespFail(ctx.Writer,"获取表情包失败！")
+		utils.RespFail(ctx.Writer, "获取表情包失败！")
 		return
 	}
 
-	for index := range Result.Emojis{
+	for index := range Result.Emojis {
 		Result.Emojis[index].File = "/asset/emoji/" + Result.Emojis[index].File
 	}
-	utils.RespOkList(ctx.Writer,Result.Emojis,len(Result.Emojis))
+	utils.RespOkList(ctx.Writer, Result.Emojis, len(Result.Emojis))
 }
 
 // GetMessageList
-// Summary 获取用户私聊消息
+// Summary 获取消息
 // @Tags 消息模块
-// @Param user_id query string false `用户id`
-// @Param target_id query string false `好友id`
+// @Param target_id query string false `好友id或者群聊id`
 // @Param limit query string false `消息数量`
 // @Param page query string false `页码`
-// func GetMessageList(ctx *gin.Context){
-// 	userId,_ := strconv.Atoi(ctx.Query("user_id"))
-// 	targetId,_ := strconv.Atoi(ctx.Query("target_id"))
-// 	limit,_ := strconv.Atoi(ctx.Query("limit"))
-// 	page,_ := strconv.Atoi(ctx.Query("page"))
-// }
+func GetMessageList(ctx *gin.Context) {
+	userId := ctx.GetInt64("current_user_id")
+	targetId, _ := strconv.Atoi(ctx.Query("target_id"))
+	messageType, _ := strconv.Atoi(ctx.Query("message_type"))
+	limit, err := strconv.Atoi(ctx.DefaultQuery("limit", "30"))
+
+	if (messageType != 1 && messageType != 2 && messageType != 3) || err != nil {
+		utils.RespFail(ctx.Writer, "参数有误")
+		return
+	}
+
+	page, err := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+
+	if err != nil {
+		utils.RespFail(ctx.Writer, "参数有误")
+		return
+	}
+
+	if targetId <= 0 || limit <= 0 || limit > 100 || page <= 0 {
+		utils.RespFail(ctx.Writer, "参数有误")
+		return
+	}
+
+	list, total, err := models.GetMessageList(userId, int64(targetId), messageType, limit, page)
+
+	if err != nil {
+		fmt.Println(err)
+		utils.RespFail(ctx.Writer, "获取消息列表失败")
+	} else {
+		utils.RespOkList(ctx.Writer, list, total)
+	}
+}

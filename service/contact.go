@@ -14,7 +14,7 @@ import (
 // @param user_id formData string false "用户id"
 // @Success 200 {string} json{"code","message"}
 // @Router /contact/getFriendsById [post]
-func SearchFriends(ctx *gin.Context){
+func SearchFriends(ctx *gin.Context) {
 	users := models.SearchFriend(ctx.PostForm("user_id"))
 
 	// ctx.JSON(200,gin.H{
@@ -22,7 +22,7 @@ func SearchFriends(ctx *gin.Context){
 	// 	"message":"查询成功！",
 	// 	"data":users,
 	// })
-	utils.RespOkList(ctx.Writer,users,len(users))
+	utils.RespOkList(ctx.Writer, users, len(users))
 }
 
 // AddFriend
@@ -32,20 +32,20 @@ func SearchFriends(ctx *gin.Context){
 // @Param target_id fromData string false "目标id"
 // @Success 200 {string} json{"code","message"}
 // @Router /contact/addFriend
-func AddFriend(ctx *gin.Context){
-	user_id,_ := strconv.Atoi(ctx.PostForm("user_id"))
-	target_id,_ := strconv.Atoi(ctx.PostForm("target_id"))
+func AddFriend(ctx *gin.Context) {
+	user_id, _ := strconv.Atoi(ctx.PostForm("user_id"))
+	target_id, _ := strconv.Atoi(ctx.PostForm("target_id"))
 
-	if user_id == target_id{
-		utils.RespFail(ctx.Writer,"添加失败")
+	if user_id == target_id {
+		utils.RespFail(ctx.Writer, "添加失败")
 		return
 	}
 
-	result := models.AddFriend(uint(user_id),uint(target_id))
+	result := models.AddFriend(uint(user_id), uint(target_id))
 
-	if result != 0{
-		utils.RespOk(ctx.Writer,nil,"添加成功")
-	}else{
-		utils.RespFail(ctx.Writer,"添加失败")
+	if result != 0 {
+		utils.RespOk(ctx.Writer, nil, "添加成功")
+	} else {
+		utils.RespFail(ctx.Writer, "添加失败")
 	}
 }

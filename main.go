@@ -17,7 +17,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := utils.InitIdGenerator(viper.GetInt64("id_generator.node_id")); err!=nil{
+	if err := utils.InitIdGenerator(viper.GetInt64("id_generator.node_id")); err != nil {
 		log.Fatal(err)
 	}
 

@@ -17,16 +17,16 @@ func Md5Encode(data string) string {
 }
 
 // 大写
-func MD5Encode(data string) string{
+func MD5Encode(data string) string {
 	return strings.ToUpper(Md5Encode(data))
 }
 
 // 随机数加密
-func MakePassword(plainPwd,salt string)string {
+func MakePassword(plainPwd, salt string) string {
 	return Md5Encode(plainPwd + salt)
 }
 
 // 解密
-func ValidPassword(plainPwd,salt string,password string) bool{
-	return Md5Encode(plainPwd + salt) == password
+func ValidPassword(plainPwd, salt string, password string) bool {
+	return Md5Encode(plainPwd+salt) == password
 }
