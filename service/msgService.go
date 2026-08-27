@@ -73,7 +73,11 @@ func MsgHandler(ws *websocket.Conn, c *gin.Context) {
 // }
 
 func Chat(ctx *gin.Context) {
-	models.Chat(ctx.Writer, ctx.Request)
+	userId := ctx.GetInt64("current_user_id")
+	if userId <= 0 {
+		return
+	}
+	models.Chat(userId, ctx.Writer, ctx.Request)
 }
 
 type EmojiInfo struct {

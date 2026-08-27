@@ -30,6 +30,8 @@ func main() {
 	utils.DB.AutoMigrate(&models.Contact{})
 	utils.DB.AutoMigrate(&models.Community{})
 	utils.DB.AutoMigrate(&models.RelationRequest{})
+	utils.DB.AutoMigrate(&models.Conversation{})
+	utils.DB.AutoMigrate(&models.ConversationMember{})
 
 	r := router.Router()
 	r.Run()

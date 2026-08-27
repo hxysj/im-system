@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
 
@@ -47,23 +46,7 @@ var clientMap map[int64]*Node = make(map[int64]*Node, 0)
 var rwLocker sync.RWMutex
 
 // websocket.Upgrader 是 Gorilla WebSocket 库中的一个结构体，它的核心作用是将普通的 HTTP 连接升级为 WebSocket 连接。
-func Chat(writer http.ResponseWriter, request *http.Request) {
-	// 获取请求携带的参数
-	query := request.URL.Query()
-	// 校验token
-	// token := query.Get("token")
-	userId, err := strconv.Atoi(query.Get("userId"))
-	// 第一个参数 s：要解析的字符串（query.Get("userId") 返回的字符串）
-	// 第二个参数 base：进制数（这里是 0，表示自动检测进制）
-	// 第三个参数 bitSize：结果类型（36 表示要解析成 int64 类型）
-	// msgType := query.Get("type")
-	// targetId := query.Get("targetId")
-	// context := query.Get("context")
-
-	if err != nil || userId == 0 {
-		return
-	}
-
+func Chat(userId int64, writer http.ResponseWriter, request *http.Request) {
 	isValid := true
 
 	// coon 是websocket的连接
