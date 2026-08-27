@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -78,8 +79,12 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 	if cType == 2 {
 		isFriend, err := IsMutualFriend(utils.DB, userId, target)
 
-		if err != nil || !isFriend {
-			return 0, "好友关系异常", err
+		if err != nil {
+			return 0, "好友关系查询失败", err
+		}
+
+		if !isFriend {
+			return 0, "好友关系异常", errors.New("对方还不是你的好友")
 		}
 
 		var conversation Conversation
@@ -90,23 +95,39 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 			lowUserId, HighUserId = HighUserId, lowUserId
 		}
 
-		if err := utils.DB.Model(&Conversation{}).Where("private_low_user_id = ? AND private_high_user_id = ? AND type = 2", lowUserId, HighUserId).First(&conversation).Error; err != nil {
-			return 0, "新建会话失败", err
-		}
+		result := utils.DB.Model(&Conversation{}).Where("private_low_user_id = ? AND private_high_user_id = ? AND type = 2", lowUserId, HighUserId).First(&conversation)
 
-		if conversation.ConversationId > 0 {
+		if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return 0, "查询会话失败", result.Error
+		}
+		// 没找到报的错误
+		if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			// 会话存在的话需要检查用户是否可以看见，不可以的话要更新visibleAt
 			var conversationMember ConversationMember
 
-			if err := utils.DB.Model(&ConversationMember{}).Where("conversation_id = ? AND user_id = ?", conversation.ConversationId, userId).First(&conversationMember).Error; err != nil {
-				return 0, "新建会话失败", err
+			result := utils.DB.Model(&ConversationMember{}).Where("conversation_id = ? AND user_id = ?", conversation.ConversationId, userId).First(&conversationMember)
+
+			// 需要判断用户是否关联对应的会话
+			if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+				return 0, "查询会话失败", result.Error
+			}
+			// 没找到的需要新建关联
+			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+				conversationMember = ConversationMember{
+					ConversationId: conversation.ConversationId,
+					UserId:         userId,
+				}
+				now := time.Now()
+				conversationMember.VisibleAt = &now
+				if err := utils.DB.Model(&ConversationMember{}).Create(conversationMember).Error; err != nil {
+					return 0, "查询会话失败", err
+				}
+				return conversation.ConversationId, "", nil
 			}
 
-			if conversationMember.VisibleAt == nil {
-				now := time.Now()
-				if err := utils.DB.Model(&ConversationMember{}).Where("conversation_id = ? AND user_id = ?", conversation.ConversationId, userId).Update("visible_at", now).Error; err != nil {
-					return 0, "新建会话失败", err
-				}
+			now := time.Now()
+			if err := utils.DB.Model(&ConversationMember{}).Where("conversation_id = ? AND user_id = ?", conversation.ConversationId, userId).Update("visible_at", now).Error; err != nil {
+				return 0, "新建会话失败", err
 			}
 
 			return conversation.ConversationId, "", nil
@@ -151,6 +172,8 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 				return 0, "新建会话失败", err
 			}
 
+			tx.Commit()
+
 			return conversation.ConversationId, "", nil
 		}
 
@@ -158,29 +181,23 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 		// 判断群聊是否存在,判断用户是否在群聊中
 		var community Community
 		if err := utils.DB.Model(&Community{}).Where("community_id = ?", target).First(&community).Error; err != nil {
-			return 0, "新建会话失败", err
-		}
-
-		if community.CommunityId <= 0 {
-			return 0, "", fmt.Errorf("群不存在！")
+			return 0, "查询会话失败", err
 		}
 
 		var contact Contact
 		if err := utils.DB.Model(&Contact{}).Where("owen_id = ? AND target_id = ? AND type = 2", userId, target).First(&contact).Error; err != nil {
-			return 0, "新建会话失败", err
-		}
-
-		if contact.ContactId <= 0 {
-			return 0, "", fmt.Errorf("该用户不在对应的群聊中")
+			return 0, "查询会话失败", err
 		}
 
 		var conversation Conversation
 
-		if err := utils.DB.Model(&Conversation{}).Where("type = 1 AND community_id = ?").First(&conversation).Error; err != nil {
-			return 0, "获取会话信息失败", err
+		result := utils.DB.Model(&Conversation{}).Where("type = 1 AND community_id = ?", community.CommunityId).First(&conversation)
+
+		if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return 0, "查询会话失败", result.Error
 		}
 
-		if conversation.ConversationId == 0 {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			tx := utils.DB.Begin()
 
 			defer func() {
@@ -209,19 +226,47 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 				conversationMember.Role = 3
 			}
 
+			nowTime := time.Now()
+			conversationMember.VisibleAt = &nowTime
+
 			if err := tx.Model(&ConversationMember{}).Create(conversationMember).Error; err != nil {
 				tx.Rollback()
 				return 0, "获取会话信息失败", err
 			}
-
+			tx.Commit()
 			return conversation.ConversationId, "", nil
 
 		} else {
 
-			// var conversationMember ConversationMember
+			var conversationMember ConversationMember
 
-			// if err := utils.DB.Model(&ConversationMember).Where("conversation_id = ? AND user_id = ?")
+			result := utils.DB.Model(&ConversationMember{}).Where("conversation_id = ? AND user_id = ?", conversation.ConversationId, userId).First(&conversationMember)
 
+			if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+				return 0, "获取会话信息失败", result.Error
+			}
+
+			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+				conversationMember = ConversationMember{
+					ConversationId: conversation.ConversationId,
+					UserId:         userId,
+				}
+				nowTime := time.Now()
+				conversationMember.VisibleAt = &nowTime
+				if community.OwnerId == uint(userId) {
+					conversationMember.Role = 3
+				}
+				if err := utils.DB.Model(&ConversationMember{}).Create(conversationMember).Error; err != nil {
+					return 0, "获取会话信息失败", err
+				}
+			} else {
+				nowTime := time.Now()
+				if err := utils.DB.Model(&ConversationMember{}).Where("conversation_id = ? AND user_id = ?", conversation.ConversationId, userId).Update("visible_at", nowTime).Error; err != nil {
+					return 0, "获取会话信息失败", err
+				}
+			}
+
+			return conversation.ConversationId, "", nil
 		}
 	}
 
