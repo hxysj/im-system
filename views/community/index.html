@@ -17,7 +17,11 @@
         maxlength="160"
         placeholder="群简介（选填）"
       ></textarea>
-      <button class="compact-button primary" type="submit" :disabled="communitySaving">
+      <button
+        class="compact-button primary"
+        type="submit"
+        :disabled="communitySaving"
+      >
         {{ communitySaving ? '创建中' : '创建群聊' }}
       </button>
     </form>
@@ -68,6 +72,13 @@
           </span>
         </div>
         <div class="invite-line">
+          <button
+            class="compact-button primary"
+            type="button"
+            @click.stop="selectCommunity(community)"
+          >
+            进入群聊
+          </button>
           <select v-model="communityInviteTarget" class="mobile-field">
             <option value="">邀请好友</option>
             <option

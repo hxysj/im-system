@@ -16,6 +16,10 @@ type Community struct {
 	Desc        string
 }
 
+func (Community) TableName() string {
+	return "community"
+}
+
 func CreateCommunity(community *Community) (int, string) {
 	if len(community.Name) == 0 {
 		return -1, "群名称不能为空"

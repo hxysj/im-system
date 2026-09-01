@@ -1,7 +1,9 @@
 <section v-if="currentView === 'chat' && !selectedUser" class="mobile-screen">
   <header class="mobile-page-header">
     <div class="mobile-title-block">
-      <span class="mobile-eyebrow">{{ socketConnected ? '实时通道已连接' : '即时通讯' }}</span>
+      <span class="mobile-eyebrow"
+        >{{ socketConnected ? '实时通道已连接' : '即时通讯' }}</span
+      >
       <h1 class="mobile-page-title">会话</h1>
     </div>
     <button
@@ -10,7 +12,7 @@
       title="刷新会话"
       aria-label="刷新会话"
       :disabled="loading"
-      @click="refreshFriends"
+      @click="refreshConversations"
     >
       <i data-lucide="refresh-cw"></i>
     </button>
@@ -27,37 +29,53 @@
   </div>
 
   <div class="mobile-scroll">
-    <div v-if="filteredFriends.length" class="session-list">
+    <div v-if="filteredConversations.length" class="session-list">
       <button
-        v-for="(person, index) in filteredFriends"
-        :key="userId(person)"
+        v-for="(conversation, index) in filteredConversations"
+        :key="conversation.id"
         class="session-row"
         type="button"
-        @click="selectUser(person)"
+        @click="openConversation(conversation)"
       >
         <span class="mobile-avatar" :class="{ warm: index % 3 === 1 }">
           <img
-            v-if="personAvatar(person)"
-            :src="assetUrl(personAvatar(person))"
-            :alt="personName(person)"
+            v-if="conversationAvatar(conversation)"
+            :src="assetUrl(conversationAvatar(conversation))"
+            :alt="conversationName(conversation)"
           />
-          <template v-else>{{ initials(personName(person)) }}</template>
-          <span class="presence-dot"></span>
+          <template v-else
+            >{{ initials(conversationName(conversation)) }}</template
+          >
+          <span v-if="conversation.type === 2" class="presence-dot"></span>
         </span>
         <span class="session-copy">
           <span class="session-main-line">
-            <strong class="session-name">{{ personName(person) || '未命名用户' }}</strong>
-            <span class="session-time">{{ lastConversationTime(userId(person)) }}</span>
+            <strong class="session-name"
+              >{{ conversationName(conversation) || '未命名会话' }}</strong
+            >
+            <span class="session-time"
+              >{{ conversationTime(conversation) }}</span
+            >
           </span>
-          <span class="session-preview">{{ lastPreview(userId(person)) }}</span>
+          <span class="session-preview"
+            >{{ conversationPreview(conversation) }}</span
+          >
+        </span>
+        <span v-if="conversation.unreadCount" class="status-chip">
+          {{ conversation.unreadCount > 99 ? '99+' : conversation.unreadCount }}
         </span>
       </button>
     </div>
     <div v-else class="empty-mobile">
       <div>
-        <span class="empty-mobile-icon"><i data-lucide="message-circle-more"></i></span>
+        <span class="empty-mobile-icon"
+          ><i data-lucide="message-circle-more"></i
+        ></span>
         <strong>{{ searchText ? '没有匹配的会话' : '还没有会话' }}</strong>
-        <span>{{ searchText ? '换个关键词试试' : '从通讯录添加好友后开始聊天' }}</span>
+        <span
+          >{{ searchText ? '换个关键词试试' : '从通讯录添加好友后开始聊天'
+          }}</span
+        >
       </div>
     </div>
   </div>
@@ -77,15 +95,18 @@
     <div class="chat-person">
       <span class="mobile-avatar">
         <img
-          v-if="personAvatar(selectedUser)"
-          :src="assetUrl(personAvatar(selectedUser))"
-          :alt="personName(selectedUser)"
+          v-if="selectedTargetAvatar()"
+          :src="assetUrl(selectedTargetAvatar())"
+          :alt="selectedTargetName()"
         />
-        <template v-else>{{ initials(personName(selectedUser)) }}</template>
+        <template v-else>{{ initials(selectedTargetName()) }}</template>
       </span>
       <div class="chat-person-copy">
-        <strong>{{ personName(selectedUser) || '未命名用户' }}</strong>
-        <span>{{ socketConnected ? '在线 · 实时连接' : '正在连接...' }}</span>
+        <strong>{{ selectedTargetName() || '未命名会话' }}</strong>
+        <span>
+          {{ selectedConversation?.type === 1 ? '群聊' : (socketConnected ?
+          '在线 · 实时连接' : '正在连接...') }}
+        </span>
       </div>
     </div>
     <button
@@ -93,6 +114,7 @@
       type="button"
       title="查看资料"
       aria-label="查看资料"
+      v-if="selectedConversation?.type === 2"
       @click="viewFriendInfo(selectedUser)"
     >
       <i data-lucide="user-round"></i>
@@ -133,7 +155,10 @@
             />
             <span v-else>{{ item.content }}</span>
           </div>
-          <div class="message-meta">{{ item.mine ? '我' : personName(selectedUser) }} · {{ item.time }}</div>
+          <div class="message-meta">
+            {{ item.mine ? '我' : (item.fromName || selectedTargetName()) }} ·
+            {{ item.time }}
+          </div>
         </div>
       </div>
     </template>

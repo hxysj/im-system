@@ -15,16 +15,16 @@ import (
 // json  JSON序列化配置  private_low_user_id 是返回给前端的JSON字段名  omitempty 值为空的时候不输出该字段
 
 type Conversation struct {
-	ConversationId    int64     `gorm:"primaryKey" json:"conversation_id"`                                                                                          // 会话id
-	Type              int       `gorm:"not null;uniqueIndex:uk_conversation_private,priority:1;uniqueIndex:uk_conversation_group,priority:1;default:1" json:"type"` //2 私聊  1群聊
-	PrivateLowUserId  int64     `gorm:"uniqueIndex:uk_conversation_private,priority:2" json:"private_low_user_id,omitempty"`                                        //私聊中双方id较小的用户
-	PrivateHighUserId int64     `gorm:"uniqueIndex:uk_conversation_private,priority:3" json:"private_high_user_id,omitempty"`                                       //私聊中双方id较大的用户
-	CommunityId       int64     `gorm:"uniqueIndex:uk_conversation_group,priority:2" json:"community_id,omitempty"`                                                 //群会话所关联的群id
-	LastMessageId     int64     `gorm:"not null;default:0" json:"last_message_id"`                                                                                  //会话的最后一条消息id
-	LastMessageAt     time.Time `gorm:"index:idx_conversation_last_message" json:"last_message_at"`                                                                 //会话最后一条消息的时间
-	Status            int       `gorm:"not null;default:1" json:"status"`                                                                                           //会话状态，例如正常、解散、禁言
-	CreatedAt         time.Time `gorm:"not null;autoCreateTime" json:"created_at"`                                                                                  //会话的创建时间
-	UpdatedAt         time.Time `gorm:"not null;autoUpdateTime" json:"updated_at"`                                                                                  //会话的更新时间
+	ConversationId    int64      `gorm:"primaryKey" json:"conversation_id"`                                                                                          // 会话id
+	Type              int        `gorm:"not null;uniqueIndex:uk_conversation_private,priority:1;uniqueIndex:uk_conversation_group,priority:1;default:1" json:"type"` //2 私聊  1群聊
+	PrivateLowUserId  *int64     `gorm:"uniqueIndex:uk_conversation_private,priority:2" json:"private_low_user_id,omitempty"`                                        //私聊中双方id较小的用户
+	PrivateHighUserId *int64     `gorm:"uniqueIndex:uk_conversation_private,priority:3" json:"private_high_user_id,omitempty"`                                       //私聊中双方id较大的用户
+	CommunityId       *int64     `gorm:"uniqueIndex:uk_conversation_group,priority:2" json:"community_id,omitempty"`                                                 //群会话所关联的群id
+	LastMessageId     int64      `gorm:"not null;default:0" json:"last_message_id"`                                                                                  //会话的最后一条消息id
+	LastMessageAt     *time.Time `gorm:"index:idx_conversation_last_message" json:"last_message_at"`                                                                 //会话最后一条消息的时间
+	Status            int        `gorm:"not null;default:1" json:"status"`                                                                                           //会话状态，例如正常、解散、禁言
+	CreatedAt         time.Time  `gorm:"not null;autoCreateTime" json:"created_at"`                                                                                  //会话的创建时间
+	UpdatedAt         time.Time  `gorm:"not null;autoUpdateTime" json:"updated_at"`                                                                                  //会话的更新时间
 }
 
 func (Conversation) TableName() string {
@@ -36,11 +36,11 @@ type ConversationMember struct {
 	UserId               int64      `gorm:"primaryKey" json:"user_id"`                         //会话的成员id
 	Role                 int        `gorm:"not null;default:0" json:"role"`                    //成员的身份 1 普通用户  2管理员  3 创建者
 	LastReadMessageId    int64      `gorm:"not null;default:0" json:"last_read_message_id"`    //用户最后读到的消息id
-	UnreadCount          int        `gorm:"not null;default:0" json:"un_read_count"`           //当前未读消息数量的缓存
+	UnreadCount          int        `gorm:"not null;default:0" json:"unread_count"`            //当前未读消息数量的缓存
 	IsPinned             bool       `gorm:"not null;default:false" json:"is_pinned"`           //是否置顶会话
 	IsMuted              bool       `gorm:"not null;default:false" json:"is_muted"`            //是否开启消息免打扰
 	JoinedAt             time.Time  `gorm:"not null;autoCreateTime" json:"joined_at"`          //用户加入会话的时间
-	LeftAt               *time.Time `json:"left_at"`                                           //用户退出会话的时间
+	LeftAt               *time.Time `json:"left_at,omitempty"`                                 //用户退出会话的时间
 	UpdatedAt            time.Time  `gorm:"not null;autoUpdateTime" json:"updated_at"`         //状态最后的修改时间
 	VisibleAt            *time.Time `json:"visible_at,omitempty"`                              //用户是否可见会话列表
 	ClearBeforeMessageId int64      `gorm:"not null;default:0" json:"clear_before_message_id"` //用户只允许看到此消息之后的消息
@@ -143,8 +143,8 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 			conversation = Conversation{
 				ConversationId:    utils.NextId(),
 				Type:              2,
-				PrivateLowUserId:  lowUserId,
-				PrivateHighUserId: HighUserId,
+				PrivateLowUserId:  &lowUserId,
+				PrivateHighUserId: &HighUserId,
 			}
 			if err := tx.Model(&Conversation{}).Create(conversation).Error; err != nil {
 				tx.Rollback()
@@ -209,7 +209,7 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 			conversation = Conversation{
 				ConversationId: utils.NextId(),
 				Type:           1,
-				CommunityId:    community.CommunityId,
+				CommunityId:    &community.CommunityId,
 			}
 
 			if err := tx.Model(&Conversation{}).Create(conversation).Error; err != nil {
@@ -271,4 +271,354 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 	}
 
 	return 0, "", fmt.Errorf("参数有误")
+}
+
+type LastMessageInfo struct {
+	MessageId int64     `json:"message_id"`
+	Content   string    `json:"content"`
+	Media     int       `json:"media"`
+	Pic       string    `json:"pic"`
+	Url       string    `json:"url"`
+	Desc      string    `json:"desc"`
+	CreateAt  time.Time `json:"created_at"`
+	IsSelf    bool      `json:"is_self"`
+}
+
+type TargetInfo struct {
+	TargetId int64  `json:"target_id"`
+	Name     string `json:"name"`
+	Avatar   string `json:"avatar"`
+}
+
+type ConversationListResult struct {
+	ConversationId  int64           `json:"conversation_id"`
+	IsPinned        bool            `json:"is_pinned"`
+	IsMuted         bool            `json:"is_muted"`
+	UnreadCount     int             `json:"unread_count"`
+	LastMessageInfo LastMessageInfo `json:"last_message_info"`
+	TargetInfo      TargetInfo      `json:"target_info"`
+}
+
+// 获取会话列表
+func LoadConversationList(userId int64) ([]ConversationListResult, error) {
+
+	type conversationListRow struct {
+		ConversationId     int64  `gorm:"column:conversation_id"`
+		Type               int    `gorm:"column:type"`
+		CommunityId        *int64 `gorm:"column:community_id"`
+		PrivateHightUserId *int64 `gorm:"column:private_high_user_id"`
+		PrivateLowUserId   *int64 `gorm:"column:private_low_user_id"`
+
+		IsPinned    bool `gorm:"column:is_pinned"`
+		IsMuted     bool `gorm:"column:is_muted"`
+		UnreadCount int  `gorm:"column:unread_count"`
+
+		LastMessageId *int64     `gorm:"column:last_message_id"`
+		LastFromId    *int64     `gorm:"column:last_from_id"`
+		LastMedia     *int       `gorm:"column:last_media"`
+		LastContent   *string    `gorm:"column:last_content"`
+		LastPic       *string    `gorm:"column:last_pic"`
+		LastUrl       *string    `gorm:"column:last_url"`
+		LastDesc      *string    `gorm:"column:last_desc"`
+		LastCreatedAt *time.Time `gorm:"column:last_created_at"`
+
+		CommunityName   *string `gorm:"column:community_name"`
+		CommunityAvatar *string `gorm:"column:community_avatar"`
+
+		LowName    *string `gorm:"column:low_name"`
+		LowAvatar  *string `gorm:"column:low_avatar"`
+		HighName   *string `gorm:"column:high_name"`
+		HighAvatar *string `gorm:"column:high_avatar"`
+	}
+
+	var rows []conversationListRow
+
+	err := utils.DB.Table("conversation AS c").
+		Select(`
+			c.conversation_id,
+			c.type,
+			c.community_id,
+			c.private_low_user_id,
+			c.private_high_user_id,
+
+			cm.is_pinned,
+			cm.is_muted,
+			cm.unread_count,
+
+			m.message_id AS last_message_id,
+			m.from_id AS last_from_id,
+			m.media AS last_media,
+			m.content AS last_content,
+			m.pic AS last_pic,
+			m.url AS last_url,
+			m.desc AS last_desc,
+			m.created_at AS last_created_at,
+
+			g.name AS community_name,
+			g.img AS community_avatar,
+
+			u_low.name AS low_name,
+			u_low.avatar AS low_avatar,
+			u_high.name AS high_name,
+			u_high.avatar AS high_avatar
+		`).
+		Joins(`
+			JOIN conversation_member AS cm ON cm.conversation_id = c.conversation_id
+		`).
+		Joins(`
+			LEFT JOIN message AS m ON m.message_id = c.last_message_id AND m.conversation_id = c.conversation_id
+		`).
+		Joins(`
+			LEFT JOIN community AS g ON c.type = 1 AND g.community_id = c.community_id
+		`).
+		Joins(`
+			LEFT JOIN user_basic AS u_low ON c.type = 2 AND u_low.user_id = c.private_low_user_id
+		`).
+		Joins(`
+			LEFT JOIN user_basic AS u_high ON c.type = 2 AND u_high.user_id = c.private_high_user_id
+		`).
+		Where(`
+			cm.user_id = ? AND cm.visible_at IS NOT NULL AND cm.left_at IS NULL AND c.status != 0
+		`, userId).Order("cm.is_pinned DESC").Order("c.last_message_at IS NULL ASC").Order("c.last_message_at DESC").Order("c.conversation_id DESC").Scan(&rows).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]ConversationListResult, 0, len(rows))
+
+	for _, row := range rows {
+		item := ConversationListResult{
+			ConversationId: row.ConversationId,
+			IsPinned:       row.IsPinned,
+			IsMuted:        row.IsMuted,
+			UnreadCount:    row.UnreadCount,
+		}
+
+		if row.Type == 1 && row.CommunityId != nil {
+			item.TargetInfo = TargetInfo{
+				TargetId: *row.CommunityId,
+				Name:     *row.CommunityName,
+				Avatar:   *row.CommunityAvatar,
+			}
+		}
+
+		if row.Type == 2 {
+			targetId := row.PrivateHightUserId
+			targetName := row.HighName
+			targetAvatar := row.HighAvatar
+
+			if row.PrivateHightUserId != nil && *row.PrivateHightUserId == userId {
+				targetId = row.PrivateLowUserId
+				targetName = row.LowName
+				targetAvatar = row.LowAvatar
+			}
+
+			if targetId != nil {
+				item.TargetInfo = TargetInfo{
+					TargetId: *targetId,
+					Name:     *targetName,
+					Avatar:   *targetAvatar,
+				}
+			}
+		}
+
+		if row.LastMessageId != nil {
+			item.LastMessageInfo = LastMessageInfo{
+				MessageId: *row.LastMessageId,
+				Content:   *row.LastContent,
+				Media:     *row.LastMedia,
+				Pic:       *row.LastPic,
+				Url:       *row.LastUrl,
+				Desc:      *row.LastDesc,
+				CreateAt:  *row.LastCreatedAt,
+				IsSelf:    row.LastFromId != nil && *row.LastFromId == userId,
+			}
+		}
+
+		result = append(result, item)
+	}
+
+	// var conversationMemberList []ConversationMember
+
+	// if err := utils.DB.
+	// 	Model(&ConversationMember{}).
+	// 	Where("user_id = ? AND visible_at IS NOT NULL AND left_at IS NULL", userId).
+	// 	Find(&conversationMemberList).Error; err != nil {
+	// 	return nil, err
+	// }
+
+	// var conversationIdList []int64
+	// conversationMemberSet := make(map[int64]ConversationMember, len(conversationMemberList))
+
+	// for _, conversationMember := range conversationMemberList {
+	// 	conversationIdList = append(conversationIdList, conversationMember.ConversationId)
+	// 	conversationMemberSet[conversationMember.ConversationId] = conversationMember
+	// }
+
+	// var conversationList []Conversation
+	// if err := utils.DB.
+	// 	Model(&Conversation{}).
+	// 	Where("conversation_id IN ? AND status != 0", conversationIdList).
+	// 	Find(&conversationList).Error; err != nil {
+	// 	return nil, err
+	// }
+
+	// // 对会话列表进行排序，优先排序指定的会话，然后是最新消息最新的会话在前
+	// sort.SliceStable(conversationList, func(i, j int) bool {
+	// 	left := conversationList[i]
+	// 	right := conversationList[j]
+
+	// 	leftMember := conversationMemberSet[left.ConversationId]
+	// 	rightMember := conversationMemberSet[right.ConversationId]
+
+	// 	if leftMember.IsPinned != rightMember.IsPinned {
+	// 		return leftMember.IsPinned
+	// 	}
+
+	// 	var leftTime, rightTime time.Time
+	// 	if left.LastMessageAt != nil {
+	// 		leftTime = *left.LastMessageAt
+	// 	}
+	// 	if right.LastMessageAt != nil {
+	// 		rightTime = *right.LastMessageAt
+	// 	}
+
+	// 	if !leftTime.Equal(rightTime) {
+	// 		return leftTime.After(rightTime)
+	// 	}
+
+	// 	return left.ConversationId > right.ConversationId
+	// })
+
+	// var messageIdList []int64
+	// var userIdList []int64
+	// var communityIdList []int64
+	// conversationSet := make(map[int64]Conversation, len(conversationList))
+
+	// for _, conversation := range conversationList {
+	// 	messageIdList = append(messageIdList, conversation.LastMessageId)
+
+	// 	if conversation.Type == 1 {
+	// 		communityIdList = append(communityIdList, *conversation.CommunityId)
+	// 	} else if conversation.Type == 2 {
+	// 		if conversation.PrivateHighUserId != nil && *conversation.PrivateHighUserId == userId {
+	// 			userIdList = append(userIdList, *conversation.PrivateLowUserId)
+	// 		} else {
+	// 			userIdList = append(userIdList, *conversation.PrivateHighUserId)
+	// 		}
+	// 	}
+
+	// 	conversationSet[conversation.ConversationId] = conversation
+	// }
+	// var messageList []Message
+	// if err := utils.DB.
+	// 	Model(&Message{}).
+	// 	Where("message_id IN ?", messageIdList).Find(&messageList).Error; err != nil {
+	// 	return nil, err
+	// }
+
+	// messageInfoSet := make(map[int64]Message, len(messageList))
+
+	// for _, message := range messageList {
+	// 	messageInfoSet[message.MessageId] = message
+	// }
+
+	// var communityInfoList []Community
+	// if err := utils.DB.
+	// 	Model(&Community{}).
+	// 	Where("community_id IN ?", communityIdList).
+	// 	Find(&communityInfoList).Error; err != nil {
+	// 	return nil, err
+	// }
+
+	// communityInfoSet := make(map[int64]Community, len(communityInfoList))
+
+	// for _, communityInfo := range communityInfoList {
+	// 	communityInfoSet[communityInfo.CommunityId] = communityInfo
+	// }
+
+	// var userInfoList []UserBasic
+	// if err := utils.DB.
+	// 	Model(&UserBasic{}).
+	// 	Where("user_id IN ?", userIdList).
+	// 	Find(&userInfoList).
+	// 	Error; err != nil {
+	// 	return nil, err
+	// }
+
+	// userInfoSet := make(map[int64]UserBasic, len(userInfoList))
+	// for _, userInfo := range userInfoList {
+	// 	userInfoSet[userInfo.UserId] = userInfo
+	// }
+
+	// result := make([]ConversationListResult, 0, len(conversationList))
+
+	// for _, conversation := range conversationList {
+
+	// 	var targetInfo TargetInfo
+	// 	if conversation.Type == 1 {
+	// 		targetInfo = TargetInfo{
+	// 			TargetId: *conversation.CommunityId,
+	// 			Name:     communityInfoSet[*conversation.CommunityId].Name,
+	// 			Avatar:   communityInfoSet[*conversation.CommunityId].Img,
+	// 		}
+	// 	} else if conversation.Type == 2 {
+	// 		var targetId int64
+	// 		if conversation.PrivateHighUserId != nil && *conversation.PrivateHighUserId == userId {
+	// 			targetId = *conversation.PrivateLowUserId
+	// 		} else {
+	// 			targetId = *conversation.PrivateHighUserId
+	// 		}
+	// 		targetInfo = TargetInfo{
+	// 			TargetId: targetId,
+	// 			Name:     userInfoSet[targetId].Name,
+	// 			Avatar:   userInfoSet[targetId].Avatar,
+	// 		}
+	// 	}
+
+	// 	messageInfo := messageInfoSet[conversation.LastMessageId]
+	// 	lastMessageInfo := LastMessageInfo{
+	// 		MessageId: messageInfo.MessageId,
+	// 		Content:   messageInfo.Content,
+	// 		Media:     messageInfo.Media,
+	// 		Pic:       messageInfo.Pic,
+	// 		Url:       messageInfo.Url,
+	// 		Desc:      messageInfo.Desc,
+	// 		CreateAt:  messageInfo.CreatedAt,
+	// 		IsSelf:    messageInfo.FromId == userId,
+	// 	}
+
+	// 	result = append(result, ConversationListResult{
+	// 		ConversationId:  conversation.ConversationId,
+	// 		IsPinned:        conversationMemberSet[conversation.ConversationId].IsPinned,
+	// 		IsMuted:         conversationMemberSet[conversation.ConversationId].IsMuted,
+	// 		TargetInfo:      targetInfo,
+	// 		LastMessageInfo: lastMessageInfo,
+	// 	})
+	// }
+
+	return result, nil
+}
+
+// 删除会话
+func DeleteConversation(userId int64, conversationId int64) error {
+	var conversationMember ConversationMember
+	if err := utils.DB.
+		Where("user_id = ? AND conversation_id = ?", userId, conversationId).
+		First(&conversationMember).Error; err != nil {
+		return err
+	}
+
+	if err := utils.DB.Model(&ConversationMember{}).
+		Where("user_id = ? AND conversation_id = ?", userId, conversationId).
+		Updates(map[string]interface{}{
+			"visible_at":              nil,
+			"unread_count":            0,
+			"clear_before_message_id": conversationMember.LastReadMessageId,
+		}).Error; err != nil {
+		return err
+	}
+
+	return nil
 }

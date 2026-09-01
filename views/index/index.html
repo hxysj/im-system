@@ -1561,7 +1561,7 @@
         // 统一封装请求地址与表单编码，保持 Go 服务端 PostForm 接收方式不变。
         const API_ROOT = window.__IM_API_ROOT__ || "http://localhost:8080"
         const api = axios.create({ baseURL: API_ROOT, timeout: 8000 })
-        api.interceptors.request.use(config => {
+        api.interceptors.request.use((config) => {
           // 每次请求从会话存储读取最新 token，避免刷新页面后丢失认证头。
           const cachedSession = sessionStorage.getItem("im-session")
           if (cachedSession) {
@@ -1577,8 +1577,8 @@
           return config
         })
         api.interceptors.response.use(
-          response => response,
-          error => Promise.reject(error)
+          (response) => response,
+          (error) => Promise.reject(error)
         )
 
         createApp({
@@ -1615,10 +1615,11 @@
               communityJoining: false,
               communityJoinKeyword: "",
               communityForm: { name: "", desc: "" },
+              conversations: [],
               selectedUser: null,
+              selectedConversation: null,
               messages: [],
               messageLoading: false,
-              conversationPreviews: {},
               socket: null,
               socketConnected: false,
               toast: {
@@ -1646,21 +1647,29 @@
             }
           },
           computed: {
+            filteredConversations() {
+              const keyword = this.searchText.toLowerCase()
+              return this.conversations.filter(
+                (conversation) =>
+                  !keyword ||
+                  this.conversationName(conversation)
+                    .toLowerCase()
+                    .includes(keyword)
+              )
+            },
             filteredFriends() {
               const keyword = this.searchText.toLowerCase()
               return this.friends.filter(
-                item =>
+                (item) =>
                   this.userId(item) !== String(this.session.user.id) &&
                   (!keyword ||
-                    this.personName(item)
-                      .toLowerCase()
-                      .includes(keyword))
+                    this.personName(item).toLowerCase().includes(keyword))
               )
             },
             filteredContacts() {
               const keyword = this.contactSearchText.toLowerCase()
               return this.friends.filter(
-                item =>
+                (item) =>
                   this.userId(item) !== String(this.session.user.id) &&
                   (!keyword ||
                     this.personName(item).toLowerCase().includes(keyword) ||
@@ -1669,7 +1678,9 @@
               )
             },
             pendingRequestCount() {
-              return this.relationRequests.filter(item => this.requestCanAct(item)).length
+              return this.relationRequests.filter((item) =>
+                this.requestCanAct(item)
+              ).length
             }
           },
           mounted() {
@@ -1679,8 +1690,12 @@
             if (cached) {
               try {
                 this.session = JSON.parse(cached)
-                if (this.session.user) this.session.user.id = String(this.session.user.id)
-                this.refreshFriends()
+                if (this.session.user)
+                  this.session.user.id = String(this.session.user.id)
+                Promise.all([
+                  this.refreshConversations(),
+                  this.refreshFriends()
+                ])
               } catch (error) {
                 sessionStorage.removeItem("im-session")
               }
@@ -1704,7 +1719,13 @@
             },
             userId(person) {
               // 所有业务 ID 按字符串发送，避免数字精度和类型不一致。
-              return String(person?.user_id ?? person?.UserId ?? person?.id ?? person?.ID ?? "")
+              return String(
+                person?.user_id ??
+                  person?.UserId ??
+                  person?.id ??
+                  person?.ID ??
+                  ""
+              )
             },
             // 统一读取后端大小写字段，兼容列表和详情响应。
             personName(person) {
@@ -1749,17 +1770,139 @@
             communityIsOwner(community) {
               return Boolean(community?.is_owner ?? community?.IsOwner)
             },
+            conversationId(conversation) {
+              return String(
+                conversation?.conversation_id ??
+                  conversation?.ConversationId ??
+                  conversation?.id ??
+                  conversation?.ID ??
+                  ""
+              )
+            },
+            responseCode(payload) {
+              return payload?.code ?? payload?.Code
+            },
+            responseData(payload) {
+              return payload?.data ?? payload?.Data
+            },
+            toBoolean(value) {
+              return (
+                value === true ||
+                value === 1 ||
+                value === "1" ||
+                value === "true"
+              )
+            },
+            normalizeConversation(item, targetOverride = null) {
+              const type = Number(item?.type ?? item?.Type ?? 0)
+              const targetInfo = item?.target_info ?? item?.TargetInfo ?? {}
+              const targetId = String(
+                targetInfo?.target_id ??
+                  targetInfo?.TargetId ??
+                  targetInfo?.id ??
+                  targetInfo?.ID ??
+                  ""
+              )
+              const targetName = String(
+                targetInfo?.name ?? targetInfo?.Name ?? ""
+              )
+              const targetAvatar = String(
+                targetInfo?.avatar ?? targetInfo?.Avatar ?? ""
+              )
+              const target =
+                targetOverride ||
+                (type === 1
+                  ? {
+                      community_id: targetId,
+                      community_name: targetName,
+                      name: targetName,
+                      img: targetAvatar
+                    }
+                  : {
+                      user_id: targetId,
+                      name: targetName,
+                      avatar: targetAvatar
+                    })
+              const last =
+                item?.last_message_info ?? item?.LastMessageInfo ?? {}
+              const rawMessageId = last?.message_id ?? last?.MessageId ?? 0
+              const hasLastMessage = Number(rawMessageId) > 0
+              const createdAt = hasLastMessage
+                ? (last?.created_at ?? last?.CreateAt ?? last?.createdAt ?? "")
+                : ""
+              return {
+                id: this.conversationId(item),
+                type,
+                target,
+                isPinned: this.toBoolean(item?.is_pinned ?? item?.IsPinned),
+                isMuted: this.toBoolean(item?.is_muted ?? item?.IsMuted),
+                unreadCount: Number(
+                  item?.unread_count ?? item?.UnreadCount ?? 0
+                ),
+                lastMessageAt: createdAt,
+                lastMessageInfo: {
+                  messageId: hasLastMessage ? String(rawMessageId) : "",
+                  content: String(last?.content ?? last?.Content ?? ""),
+                  media: Number(last?.media ?? last?.Media ?? 0),
+                  pic: String(last?.pic ?? last?.Pic ?? ""),
+                  url: String(last?.url ?? last?.Url ?? ""),
+                  desc: String(last?.desc ?? last?.Desc ?? ""),
+                  createdAt,
+                  isSelf: this.toBoolean(last?.is_self ?? last?.IsSelf)
+                }
+              }
+            },
+            conversationName(conversation) {
+              if (!conversation) return ""
+              return conversation.type === 1
+                ? this.communityName(conversation.target)
+                : this.personName(conversation.target)
+            },
+            conversationAvatar(conversation) {
+              if (!conversation) return ""
+              return conversation.type === 1
+                ? this.communityImg(conversation.target)
+                : this.personAvatar(conversation.target)
+            },
+            conversationPreview(conversation) {
+              const last = conversation?.lastMessageInfo || {}
+              if (last.media === 2) return "[表情]"
+              if (last.media === 3) return "[图片]"
+              return last.content || "开始一段新对话"
+            },
+            conversationTime(conversation) {
+              return this.formatMessageTime(conversation?.lastMessageAt)
+            },
+            selectedTargetName() {
+              if (!this.selectedUser) return ""
+              return this.selectedConversation?.type === 1
+                ? this.communityName(this.selectedUser)
+                : this.personName(this.selectedUser)
+            },
+            selectedTargetAvatar() {
+              if (!this.selectedUser) return ""
+              return this.selectedConversation?.type === 1
+                ? this.communityImg(this.selectedUser)
+                : this.personAvatar(this.selectedUser)
+            },
+            messageSenderName(fromId) {
+              const senderId = String(fromId || "")
+              if (senderId === String(this.session.user?.id || "")) return "我"
+              const sender = this.friends.find(
+                (person) => this.userId(person) === senderId
+              )
+              return (
+                this.personName(sender) ||
+                (this.selectedConversation?.type === 2
+                  ? this.selectedTargetName()
+                  : "群成员")
+              )
+            },
             initials(name) {
               return String(name || "?")
                 .trim()
                 .slice(0, 1)
                 .toUpperCase()
-            },
-            lastPreview(id) {
-              return this.conversationPreviews[id]?.content || "开始一段新对话"
-            },
-            lastConversationTime(id) {
-              return this.conversationPreviews[id]?.time || ""
             },
             showToast(message, type = "success") {
               clearTimeout(this.toast.timer)
@@ -1867,7 +2010,10 @@
                   JSON.stringify(this.session)
                 )
                 this.showToast("登录成功")
-                await this.refreshFriends()
+                await Promise.all([
+                  this.refreshConversations(),
+                  this.refreshFriends()
+                ])
               } catch (error) {
                 this.authError =
                   error.response?.data?.msg ||
@@ -1883,9 +2029,18 @@
               try {
                 const response = await api.get("/user/getUserList")
                 const payload = response.data || {}
-                this.users = Array.isArray(payload.message)
-                  ? payload.message
-                  : []
+                if (this.responseCode(payload) !== 0)
+                  throw new Error(
+                    payload.msg || payload.message || "用户列表加载失败"
+                  )
+                const list =
+                  this.responseData(payload) ??
+                  payload.message ??
+                  payload.Rows ??
+                  []
+                if (!Array.isArray(list))
+                  throw new Error("用户列表响应格式错误")
+                this.users = list
               } catch (error) {
                 this.showToast(
                   "个人资料加载失败，请确认后端服务已启动",
@@ -1905,17 +2060,18 @@
                   this.formBody({ user_id: String(this.session.user.id) })
                 )
                 const payload = response.data || {}
-                // 兼容后端统一响应的大小写字段和旧版 Rows 字段
-                payload.Code = payload.code ?? payload.Code
-                payload.Rows = payload.data ?? payload.Data ?? payload.Rows
-                if (payload.Code !== 0) throw new Error("好友列表加载失败")
-                this.friends = Array.isArray(payload.Rows) ? payload.Rows : []
-                await this.loadConversationPreviews()
-                if (
-                  this.selectedUser &&
-                  !this.friends.some(item => this.userId(item) === this.userId(this.selectedUser))
-                )
-                  this.closeConversation()
+                if (this.responseCode(payload) !== 0)
+                  throw new Error(
+                    payload.msg || payload.message || "好友列表加载失败"
+                  )
+                const list =
+                  this.responseData(payload) ??
+                  payload.Rows ??
+                  payload.message ??
+                  []
+                if (!Array.isArray(list))
+                  throw new Error("好友列表响应格式错误")
+                this.friends = list
               } catch (error) {
                 this.showToast(
                   "好友列表加载失败，请确认好友关系已建立",
@@ -1925,43 +2081,43 @@
                 this.loading = false
               }
             },
-            async loadConversationPreviews() {
-              const peers = this.friends.filter(
-                item => this.userId(item) !== String(this.session.user.id)
-              )
-              const previews = await Promise.all(
-                peers.map(async person => {
-                  const id = this.userId(person)
-                  try {
-                    const response = await api.get("/msg/getMessageList", {
-                      params: {
-                        target_id: id,
-                        message_type: 2,
-                        limit: 1,
-                        page: 1
-                      }
-                    })
-                    const payload = response.data || {}
-                    const list = payload.data ?? payload.Data ?? payload.Rows ?? []
-                    const latest = Array.isArray(list) ? list[0] : null
-                    if (!latest) return null
-                    const media = Number(latest.media ?? latest.Media ?? 1)
-                    const content = String(latest.content ?? latest.Content ?? "")
-                    return {
-                      id,
-                      content: media === 2 ? "[表情]" : media === 3 ? "[图片]" : content,
-                      time: this.formatMessageTime(latest.created_at ?? latest.CreatedAt)
-                    }
-                  } catch (error) {
-                    return null
+            async refreshConversations() {
+              if (!this.session.user) return
+              this.loading = true
+              try {
+                const response = await api.get(
+                  "/conversation/getConversationList"
+                )
+                const payload = response.data || {}
+                if (this.responseCode(payload) !== 0)
+                  throw new Error(
+                    payload.msg || payload.message || "会话列表加载失败"
+                  )
+                const list = this.responseData(payload) ?? payload.Rows ?? []
+                if (!Array.isArray(list))
+                  throw new Error("会话列表响应格式错误")
+                this.conversations = list
+                  .map((item) => this.normalizeConversation(item))
+                  .filter((item) => item.id)
+                if (this.selectedConversation) {
+                  const current = this.conversations.find(
+                    (item) => item.id === this.selectedConversation.id
+                  )
+                  if (current) {
+                    this.selectedConversation = current
+                    this.selectedUser = current.target
                   }
-                })
-              )
-              const next = { ...this.conversationPreviews }
-              previews.forEach(item => {
-                if (item) next[item.id] = { content: item.content, time: item.time }
-              })
-              this.conversationPreviews = next
+                }
+              } catch (error) {
+                this.showToast(
+                  error.response?.data?.msg ||
+                    error.message ||
+                    "会话列表加载失败",
+                  "error"
+                )
+              } finally {
+                this.loading = false
+              }
             },
             // 搜索结果只展示，用户确认后才会发起添加好友请求。
             async searchUser() {
@@ -2120,7 +2276,9 @@
             },
             requestCanAct(item) {
               // 自己发出的好友申请只展示状态，不能由发送方处理。
-              return this.requestIsPending(item) && !this.requestIsOutgoing(item)
+              return (
+                this.requestIsPending(item) && !this.requestIsOutgoing(item)
+              )
             },
             async refreshRequests() {
               if (!this.session.user) return
@@ -2207,23 +2365,27 @@
               this.socket = null
               this.socketConnected = false
               this.selectedUser = null
+              this.selectedConversation = null
               this.messages = []
               this.currentView = "contacts"
               await this.refreshContacts()
             },
-            openSessions() {
+            async openSessions() {
               if (this.socket) this.socket.close()
               this.socket = null
               this.socketConnected = false
               this.selectedUser = null
+              this.selectedConversation = null
               this.messages = []
               this.currentView = "chat"
+              await this.refreshConversations()
             },
             async openProfile() {
               if (this.socket) this.socket.close()
               this.socket = null
               this.socketConnected = false
               this.selectedUser = null
+              this.selectedConversation = null
               this.messages = []
               this.currentView = "profile"
               await this.refreshContacts()
@@ -2296,9 +2458,100 @@
                 this.communityJoining = false
               }
             },
+            async createConversation(endpoint, payload, type, target) {
+              const response = await api.post(endpoint, this.formBody(payload))
+              const body = response.data || {}
+              if (this.responseCode(body) !== 0)
+                throw new Error(body.msg || body.message || "创建会话失败")
+              const data = this.responseData(body) || {}
+              const conversationId = this.conversationId(data)
+              if (!conversationId) throw new Error("创建会话响应缺少会话 ID")
+              const conversation = this.normalizeConversation(
+                {
+                  conversation_id: conversationId,
+                  type,
+                  target_info:
+                    type === 1
+                      ? {
+                          target_id: this.communityId(target),
+                          name: this.communityName(target),
+                          avatar: this.communityImg(target)
+                        }
+                      : {
+                          target_id: this.userId(target),
+                          name: this.personName(target),
+                          avatar: this.personAvatar(target)
+                        }
+                },
+                target
+              )
+              const existing = this.conversations.find(
+                (item) => item.id === conversation.id
+              )
+              const nextConversation = existing
+                ? { ...existing, type, target }
+                : conversation
+              this.upsertConversation(nextConversation)
+              return nextConversation
+            },
+            upsertConversation(conversation) {
+              const index = this.conversations.findIndex(
+                (item) => item.id === conversation.id
+              )
+              if (index < 0) {
+                this.conversations = [conversation, ...this.conversations]
+                return
+              }
+              const next = this.conversations.slice()
+              next[index] = { ...next[index], ...conversation }
+              this.conversations = next
+            },
             async selectUser(person) {
+              const targetId = this.userId(person)
+              if (!targetId || !this.session.user) return
+              try {
+                const conversation = await this.createConversation(
+                  "/conversation/getPrivateConversationId",
+                  { target_id: targetId },
+                  2,
+                  person
+                )
+                await this.openConversation(conversation)
+              } catch (error) {
+                this.showToast(
+                  error.response?.data?.msg || error.message || "创建私聊失败",
+                  "error"
+                )
+              }
+            },
+            async selectCommunity(community) {
+              const communityId = this.communityId(community)
+              if (!communityId || !this.session.user) return
+              try {
+                const conversation = await this.createConversation(
+                  "/conversation/getCommunityConversationId",
+                  { community_id: communityId },
+                  1,
+                  community
+                )
+                await this.openConversation(conversation)
+              } catch (error) {
+                this.showToast(
+                  error.response?.data?.msg ||
+                    error.message ||
+                    "创建群聊会话失败",
+                  "error"
+                )
+              }
+            },
+            async openConversation(conversation) {
+              if (!conversation?.id) return
+              if (this.socket) this.socket.close()
+              this.socket = null
+              this.socketConnected = false
               this.currentView = "chat"
-              this.selectedUser = person
+              this.selectedConversation = conversation
+              this.selectedUser = conversation.target
               this.messages = []
               this.emojiPanelOpen = false
               await this.loadMessageHistory()
@@ -2309,54 +2562,59 @@
               this.socket = null
               this.socketConnected = false
               this.selectedUser = null
+              this.selectedConversation = null
               this.messages = []
               this.emojiPanelOpen = false
               this.currentView = "chat"
             },
             async loadMessageHistory() {
-              if (!this.selectedUser) return
-              const targetId = this.userId(this.selectedUser)
+              const conversationId = this.selectedConversation?.id
+              if (!conversationId) return
               this.messageLoading = true
               try {
-                // 历史消息沿用后端分页参数，首屏读取最近 30 条私聊记录。
                 const response = await api.get("/msg/getMessageList", {
                   params: {
-                    target_id: targetId,
-                    message_type: 2,
+                    conversation_id: conversationId,
                     limit: 30,
                     page: 1
                   }
                 })
                 const payload = response.data || {}
-                if ((payload.code ?? payload.Code) !== 0)
-                  throw new Error(payload.msg || payload.message || "历史消息加载失败")
-                const list = payload.data ?? payload.Data ?? payload.Rows ?? []
-                if (!Array.isArray(list)) throw new Error("历史消息响应格式错误")
+                if (this.responseCode(payload) !== 0)
+                  throw new Error(
+                    payload.msg || payload.message || "历史消息加载失败"
+                  )
+                const list = this.responseData(payload) ?? payload.Rows ?? []
+                if (!Array.isArray(list))
+                  throw new Error("历史消息响应格式错误")
                 this.messages = list
                   .slice()
                   .reverse()
-                  .map(item => ({
-                    id: String(item.message_id ?? item.MessageId ?? `${Date.now()}-${Math.random()}`),
-                    content: String(item.content ?? item.Content ?? ""),
-                    media: Number(item.media ?? item.Media ?? 1),
-                    url: String(item.url ?? item.Url ?? ""),
-                    mine: Boolean(item.is_self ?? item.IsSelf),
-                    targetId,
-                    time: this.formatMessageTime(item.created_at ?? item.CreatedAt)
-                  }))
-                const latest = this.messages[this.messages.length - 1]
-                if (latest)
-                  this.updateConversationPreview(
-                    targetId,
-                    latest.content,
-                    latest.media,
-                    latest.time
-                  )
+                  .map((item) => {
+                    const fromInfo = item.from_info ?? item.FromInfo ?? {}
+                    const createdAt = item.created_at ?? item.CreatedAt ?? ""
+                    return {
+                      id: String(
+                        item.message_id ??
+                          item.MessageId ??
+                          `${Date.now()}-${Math.random()}`
+                      ),
+                      content: String(item.content ?? item.Content ?? ""),
+                      media: Number(item.media ?? item.Media ?? 1),
+                      url: String(item.url ?? item.Url ?? ""),
+                      mine: this.toBoolean(item.is_self ?? item.IsSelf),
+                      fromName: String(fromInfo.name ?? fromInfo.Name ?? ""),
+                      createdAt,
+                      time: this.formatMessageTime(createdAt)
+                    }
+                  })
                 this.scrollMessages()
               } catch (error) {
                 this.messages = []
                 this.showToast(
-                  error.response?.data?.msg || error.message || "历史消息加载失败",
+                  error.response?.data?.msg ||
+                    error.message ||
+                    "历史消息加载失败",
                   "error"
                 )
               } finally {
@@ -2364,7 +2622,12 @@
               }
             },
             connectSocket() {
-              if (!this.selectedUser || !this.session.user || !this.session.token) return
+              if (
+                !this.selectedConversation ||
+                !this.session.user ||
+                !this.session.token
+              )
+                return
               if (this.socket) this.socket.close()
               const base = API_ROOT || window.location.origin
               const wsBase = base.replace(/^http/, "ws")
@@ -2383,25 +2646,42 @@
               this.socket.onerror = () => {
                 this.socketConnected = false
               }
-              this.socket.onmessage = event => {
+              this.socket.onmessage = (event) => {
                 if (event.data === "欢迎进入im-system系统的聊天室！") return
                 let content = event.data
                 let media = 1
                 let url = ""
                 let fromId = ""
+                let conversationId = ""
                 try {
                   const payload = JSON.parse(event.data)
                   content = payload.Content || payload.content || event.data
                   media = Number(payload.Media || payload.media || 1)
                   // 表情消息的图片地址由后端透传在 url 字段中
                   url = payload.Url || payload.url || ""
-                  fromId = String(payload.FromId || payload.fromId || payload.from_id || "")
-                } catch (error) {}
-                const selectedId = this.userId(this.selectedUser)
-                const conversationId = fromId || selectedId
-                const time = this.timeNow()
-                this.updateConversationPreview(conversationId, content, media, time)
-                if (fromId && fromId !== selectedId) {
+                  fromId = String(
+                    payload.FromId || payload.fromId || payload.from_id || ""
+                  )
+                  conversationId = String(
+                    payload.ConversationId ||
+                      payload.conversationId ||
+                      payload.conversation_id ||
+                      ""
+                  )
+                } catch (error) {
+                  return
+                }
+                if (!conversationId) return
+                const selectedId = this.selectedConversation?.id || ""
+                const createdAt = new Date().toISOString()
+                this.updateConversationPreview(
+                  conversationId,
+                  content,
+                  media,
+                  createdAt,
+                  conversationId !== selectedId
+                )
+                if (conversationId !== selectedId) {
                   this.showToast("收到一条新消息")
                   return
                 }
@@ -2411,26 +2691,28 @@
                   media,
                   url,
                   mine: false,
-                  targetId: selectedId,
-                  time
+                  fromName: this.messageSenderName(fromId),
+                  createdAt,
+                  time: this.formatMessageTime(createdAt)
                 })
                 this.scrollMessages()
               }
             },
             sendMessage() {
-              if (!this.draft || !this.selectedUser) return
+              if (!this.draft || !this.selectedConversation) return
               this.sendChatMessage(this.draft, 1)
             },
             sendEmoji(emoji) {
-              if (!emoji || !emoji.file || !this.selectedUser) return
+              if (!emoji || !emoji.file || !this.selectedConversation) return
               this.sendChatMessage("", 2, emoji.name, emoji.file)
             },
             sendChatMessage(content, media, name = "", url = "") {
+              const conversationId = this.selectedConversation?.id
+              if (!conversationId || !this.session.user) return
               const packet = {
-                type: 2,
+                conversationId: Number(conversationId),
                 media,
                 fromId: Number(this.session.user.id),
-                targetId: Number(this.userId(this.selectedUser)),
                 content,
                 url
               }
@@ -2439,7 +2721,7 @@
                 return
               }
               this.socket.send(JSON.stringify(packet))
-              const time = this.timeNow()
+              const createdAt = new Date().toISOString()
               this.messages.push({
                 id: `${Date.now()}-${Math.random()}`,
                 content,
@@ -2447,14 +2729,16 @@
                 name,
                 url,
                 mine: true,
-                targetId: this.userId(this.selectedUser),
-                time
+                fromName: "我",
+                createdAt,
+                time: this.formatMessageTime(createdAt)
               })
               this.updateConversationPreview(
-                this.userId(this.selectedUser),
+                conversationId,
                 content,
                 media,
-                time
+                createdAt,
+                false
               )
               if (media === 1) this.draft = ""
               this.emojiPanelOpen = false
@@ -2475,13 +2759,45 @@
                 minute: "2-digit"
               })
             },
-            updateConversationPreview(id, content, media, time) {
-              if (!id) return
-              const preview = media === 2 ? "[表情]" : media === 3 ? "[图片]" : content
-              this.conversationPreviews = {
-                ...this.conversationPreviews,
-                [id]: { content: preview || "新消息", time }
+            updateConversationPreview(id, content, media, createdAt, incoming) {
+              const conversationId = String(id || "")
+              if (!conversationId) return
+              const index = this.conversations.findIndex(
+                (item) => item.id === conversationId
+              )
+              if (index < 0) {
+                void this.refreshConversations()
+                return
               }
+              const next = this.conversations.slice()
+              const current = next[index]
+              const selectedId = this.selectedConversation?.id || ""
+              next[index] = {
+                ...current,
+                unreadCount:
+                  incoming && conversationId !== selectedId
+                    ? current.unreadCount + 1
+                    : conversationId === selectedId
+                      ? 0
+                      : current.unreadCount,
+                lastMessageAt: createdAt,
+                lastMessageInfo: {
+                  ...current.lastMessageInfo,
+                  content: String(content || ""),
+                  media: Number(media || 1),
+                  createdAt,
+                  isSelf: !incoming
+                }
+              }
+              this.conversations = next.sort((left, right) => {
+                if (left.isPinned !== right.isPinned)
+                  return left.isPinned ? -1 : 1
+                const leftTime = new Date(left.lastMessageAt || 0).getTime()
+                const rightTime = new Date(right.lastMessageAt || 0).getTime()
+                if (leftTime !== rightTime) return rightTime - leftTime
+                if (left.id === right.id) return 0
+                return left.id > right.id ? -1 : 1
+              })
             },
             scrollMessages() {
               this.$nextTick(() => {
@@ -2514,10 +2830,11 @@
                 this.users = []
                 this.friends = []
                 this.communities = []
+                this.conversations = []
                 this.userSearchResult = null
                 this.selectedUser = null
+                this.selectedConversation = null
                 this.messages = []
-                this.conversationPreviews = {}
                 this.currentView = "chat"
                 this.contactSection = "friends"
                 this.showToast(message, type)
@@ -2527,8 +2844,9 @@
               await this.refreshUsers()
               // 仅从当前登录用户的记录填充资料表单，不接受好友对象作为编辑目标。
               const person =
-                this.users.find(item => this.userId(item) === String(this.session.user.id)) ||
-                this.session.user
+                this.users.find(
+                  (item) => this.userId(item) === String(this.session.user.id)
+                ) || this.session.user
               this.memberModal = { visible: true, editing: true, error: "" }
               this.memberForm = {
                 id: this.session.user.id,
@@ -2662,7 +2980,7 @@
             }
           }
         }).mount("#app")
-      })().catch(error => {
+      })().catch((error) => {
         document.querySelector("#app").innerHTML =
           `<div class="empty-state"><div><strong>页面模块加载失败</strong><span>${error.message}</span></div></div>`
       })

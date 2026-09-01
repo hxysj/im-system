@@ -16,16 +16,17 @@ import (
 
 type Message struct {
 	gorm.Model
-	MessageId int64  `gorm:"not null;uniqueIndex" json:"message_id"`
-	FromId    int64  //发送者
-	TargetId  int64  // 接收者
-	Type      int    // 消息类型 1群聊 2私聊 3广播
-	Media     int    //消息类型 - 1文字 2表情包 3图片 4音频
-	Content   string //消息内容
-	Pic       string
-	Url       string
-	Desc      string
-	Amount    int //其他数字统计
+	MessageId      int64 `gorm:"not null;uniqueIndex:idx_message_conversation,priority:2" json:"message_id"`
+	FromId         int64 //发送者
+	ConversationId int64 `gorm:"not null;index:idx_message_conversation,priority:1"` //会话id
+	// TargetId       int64  // 接收者
+	// Type           int    // 消息类型 1群聊 2私聊 3广播
+	Media   int    //消息类型 - 1文字 2表情包 3图片 4音频
+	Content string //消息内容
+	Pic     string
+	Url     string
+	Desc    string
+	Amount  int //其他数字统计
 }
 
 func (table *Message) TableName() string {
@@ -106,7 +107,7 @@ func Chat(userId int64, writer http.ResponseWriter, request *http.Request) {
 // 发送消息 - 负责将客户端获取的消息发送到对应的目标上去
 func sendProc(userId int64, node *Node) {
 	// 心跳检测的逻辑
-	// 没30秒发送一次Ping帧
+	// 每30秒发送一次Ping帧
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	// 无限循环，支持处理消息
@@ -195,7 +196,7 @@ func init() {
 	go udpSendProc()
 	// 船舰广播接收消息的进程
 	go udpRecvProc()
-	fmt.Println("inti goruntine")
+	fmt.Println("init goruntine")
 }
 
 // UDP服务发送消息
@@ -259,20 +260,55 @@ func dispatch(data []byte) {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("[dispatch] >>> ", msg.TargetId, string(data))
+
+	// 要从conversation表中获取对应的成员
+	var conversationMemberList []ConversationMember
+	if err := utils.DB.Model(&ConversationMember{}).Where("conversation_id = ? AND user_id != ?", msg.ConversationId, msg.FromId).Find(&conversationMemberList).Error; err != nil {
+		fmt.Println("获取会话信息表失败:", err)
+		return
+	}
+
+	fmt.Println("[dispatch] >>> ", msg.FromId, string(data))
 	// 将消息存储到数据库中
 
 	msg.MessageId = utils.NextId()
+	tx := utils.DB.Begin()
 
-	if err := utils.DB.Create(&msg).Error; err != nil {
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.Create(&msg).Error; err != nil {
+		tx.Rollback()
 		fmt.Print("保存消息失败：", err)
 		return
 	}
 
-	switch msg.Type {
-	// 检测消息类型是2的 - 私聊
-	case 2:
-		sendMsg(msg.TargetId, data)
+	var conversation Conversation
+	if err := tx.Model(&Conversation{}).Where("conversation_id = ?", msg.ConversationId).First(&conversation).Error; err != nil {
+		tx.Rollback()
+		fmt.Println("获取会话失败:", err)
+		return
+	}
+
+	if err := tx.Model(&Conversation{}).
+		Where("conversation_id = ?", msg.ConversationId).
+		Updates(map[string]interface{}{
+			"last_message_id": msg.MessageId,
+			"last_message_at": msg.CreatedAt,
+		}).Error; err != nil {
+		tx.Rollback()
+		fmt.Println("更新会话最后消息失败：", err)
+		return
+	}
+
+	tx.Commit()
+
+	// 私聊或者群聊都是通过会话表获取目标用户信息，然后将数据发送给他们
+	for _, conversationMember := range conversationMemberList {
+		sendMsg(conversationMember.UserId, data)
 	}
 }
 
@@ -295,56 +331,167 @@ type MessageUserInfo struct {
 }
 
 type MessageListResult struct {
-	MessageId  int64           `json:"message_id"`
-	Type       int             `json:"type"`
-	FromInfo   MessageUserInfo `json:"from_info,omitempty"`
-	TargetInfo MessageUserInfo `json:"target_info,omitempty"`
-	Media      int             `json:"media"`
-	Content    string          `json:"content"`
-	Pic        string          `json:"pic"`
-	Url        string          `json:"url"`
-	Desc       string          `json:"desc"`
-	CreatedAt  time.Time       `json:"created_at"`
-	IsSelf     bool            `json:"is_self"`
+	MessageId int64           `json:"message_id"`
+	FromInfo  MessageUserInfo `json:"from_info,omitempty"`
+	Media     int             `json:"media"`
+	Content   string          `json:"content"`
+	Pic       string          `json:"pic"`
+	Url       string          `json:"url"`
+	Desc      string          `json:"desc"`
+	CreatedAt time.Time       `json:"created_at"`
+	IsSelf    bool            `json:"is_self"`
 }
 
 // 获取用户消息
-func GetMessageList(userId int64, targetId int64, msgType int, limit int, page int) ([]MessageListResult, int64, error) {
-	if msgType == 1 {
-		var community Community
-		if err := utils.DB.Model(&Community{}).Where("community_id = ?", targetId).First(&community).Error; err != nil {
-			return nil, 0, err
-		}
-		var contact Contact
-		if err := utils.DB.Model(&Contact{}).Where("owen_id = ? AND target_id = ? AND type = 2", userId, targetId).First(&contact).Error; err != nil {
-			return nil, 0, err
-		}
-	} else if msgType == 2 {
-		var user UserBasic
-		if err := utils.DB.Model(&UserBasic{}).Where("user_id = ?", targetId).First(&user).Error; err != nil {
-			return nil, 0, err
-		}
+// func GetMessageList(userId int64, targetId int64, msgType int, limit int, page int) ([]MessageListResult, int64, error) {
+// 	if msgType == 1 {
+// 		var community Community
+// 		if err := utils.DB.Model(&Community{}).Where("community_id = ?", targetId).First(&community).Error; err != nil {
+// 			return nil, 0, err
+// 		}
+// 		var contact Contact
+// 		if err := utils.DB.Model(&Contact{}).Where("owen_id = ? AND target_id = ? AND type = 2", userId, targetId).First(&contact).Error; err != nil {
+// 			return nil, 0, err
+// 		}
+// 	} else if msgType == 2 {
+// 		var user UserBasic
+// 		if err := utils.DB.Model(&UserBasic{}).Where("user_id = ?", targetId).First(&user).Error; err != nil {
+// 			return nil, 0, err
+// 		}
+// 	}
+// 	var total int64
+// 	var messageList []Message
+// 	// 私聊需要获取自己发送的还需要获取对方发送的
+// 	query := utils.DB.Model(&Message{}).
+// 		Where("(from_id = ? AND target_id = ? OR from_id = ? AND target_id = ?) AND type = ?",
+// 			userId,
+// 			targetId,
+// 			targetId,
+// 			userId,
+// 			msgType)
+// 	// 群聊则是获取所有人发送的
+// 	if msgType == 1 {
+// 		query = utils.DB.Model(&Message{}).
+// 			Where("target_id = ? AND type = ?", targetId, msgType)
+// 	}
+
+// 	if err := query.Count(&total).Error; err != nil {
+// 		return nil, 0, err
+// 	}
+// 	if err := query.Order("created_at DESC").
+// 		Limit(limit).
+// 		Offset((page - 1) * limit).
+// 		Find(&messageList).Error; err != nil {
+// 		return nil, 0, err
+// 	}
+
+// 	userIdSet := make(map[int64]struct{}, 0)
+
+// 	for _, message := range messageList {
+// 		if msgType == 1 {
+// 			if _, ok := userIdSet[message.FromId]; !ok {
+// 				userIdSet[message.FromId] = struct{}{}
+// 			}
+// 		} else if msgType == 2 {
+// 			if _, ok := userIdSet[message.FromId]; !ok {
+// 				userIdSet[message.FromId] = struct{}{}
+// 			}
+// 			if _, ok := userIdSet[message.TargetId]; !ok {
+// 				userIdSet[message.TargetId] = struct{}{}
+// 			}
+// 		}
+// 	}
+
+// 	userIdList := make([]int64, 0, len(userIdSet))
+
+// 	for key, _ := range userIdSet {
+// 		userIdList = append(userIdList, key)
+// 	}
+
+// 	var userInfoList []UserBasic
+
+// 	if err := utils.DB.Model(&UserBasic{}).Where("user_id IN ?", userIdList).Find(&userInfoList).Error; err != nil {
+// 		return nil, 0, err
+// 	}
+
+// 	userInfoMap := make(map[int64]UserBasic, len(userInfoList))
+
+// 	for _, user := range userInfoList {
+// 		userInfoMap[user.UserId] = user
+// 	}
+
+// 	result := make([]MessageListResult, 0, len(messageList))
+
+// 	for _, message := range messageList {
+// 		res := MessageListResult{
+// 			MessageId: message.MessageId,
+// 			Type:      message.Type,
+// 			Media:     message.Media,
+// 			Content:   message.Content,
+// 			Pic:       message.Pic,
+// 			Url:       message.Url,
+// 			Desc:      message.Desc,
+// 			CreatedAt: message.CreatedAt,
+// 			IsSelf:    false,
+// 		}
+// 		if message.Type == 1 {
+// 			// 群聊消息
+// 			fromUser, _ := userInfoMap[message.FromId]
+// 			res.FromInfo = MessageUserInfo{
+// 				UserId: fromUser.UserId,
+// 				Name:   fromUser.Name,
+// 				Avatar: fromUser.Avatar,
+// 			}
+// 			if fromUser.UserId == userId {
+// 				res.IsSelf = true
+// 			}
+// 		} else if message.Type == 2 {
+// 			// 私聊消息
+// 			fromUser, _ := userInfoMap[message.FromId]
+// 			targetUser, _ := userInfoMap[message.TargetId]
+// 			res.FromInfo = MessageUserInfo{
+// 				UserId: fromUser.UserId,
+// 				Name:   fromUser.Name,
+// 				Avatar: fromUser.Avatar,
+// 			}
+// 			res.TargetInfo = MessageUserInfo{
+// 				UserId: targetUser.UserId,
+// 				Name:   targetUser.Name,
+// 				Avatar: targetUser.Avatar,
+// 			}
+// 			if fromUser.UserId == userId {
+// 				res.IsSelf = true
+// 			}
+// 		}
+
+// 		result = append(result, res)
+// 	}
+
+// 	return result, total, nil
+// }
+
+// 根据会话id获取消息列表
+func GetMessageList(userId int64, conversation_id int64, limit int, page int) ([]MessageListResult, int64, error) {
+	var conversationMember ConversationMember
+
+	if err := utils.DB.Model(&ConversationMember{}).
+		Where("user_id = ? AND conversation_id = ?", userId, conversation_id).
+		First(&conversationMember).
+		Error; err != nil {
+		return nil, 0, err
 	}
+
 	var total int64
 	var messageList []Message
-	// 私聊需要获取自己发送的还需要获取对方发送的
 	query := utils.DB.Model(&Message{}).
-		Where("(from_id = ? AND target_id = ? OR from_id = ? AND target_id = ?) AND type = ?",
-			userId,
-			targetId,
-			targetId,
-			userId,
-			msgType)
-	// 群聊则是获取所有人发送的
-	if msgType == 1 {
-		query = utils.DB.Model(&Message{}).
-			Where("target_id = ? AND type = ?", targetId, msgType)
-	}
+		Where("conversation_id = ? AND message_id > ?", conversation_id, conversationMember.ClearBeforeMessageId)
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := query.Order("created_at DESC").
+
+	if err := query.
+		Order("message_id DESC").
 		Limit(limit).
 		Offset((page - 1) * limit).
 		Find(&messageList).Error; err != nil {
@@ -354,18 +501,7 @@ func GetMessageList(userId int64, targetId int64, msgType int, limit int, page i
 	userIdSet := make(map[int64]struct{}, 0)
 
 	for _, message := range messageList {
-		if msgType == 1 {
-			if _, ok := userIdSet[message.FromId]; !ok {
-				userIdSet[message.FromId] = struct{}{}
-			}
-		} else if msgType == 2 {
-			if _, ok := userIdSet[message.FromId]; !ok {
-				userIdSet[message.FromId] = struct{}{}
-			}
-			if _, ok := userIdSet[message.TargetId]; !ok {
-				userIdSet[message.TargetId] = struct{}{}
-			}
-		}
+		userIdSet[message.FromId] = struct{}{}
 	}
 
 	userIdList := make([]int64, 0, len(userIdSet))
@@ -376,61 +512,35 @@ func GetMessageList(userId int64, targetId int64, msgType int, limit int, page i
 
 	var userInfoList []UserBasic
 
-	if err := utils.DB.Model(&UserBasic{}).Where("user_id IN ?", userIdList).Find(&userInfoList).Error; err != nil {
+	if err := utils.DB.Model(&UserBasic{}).
+		Where("user_id IN ?", userIdList).
+		Find(&userInfoList).Error; err != nil {
 		return nil, 0, err
 	}
 
-	userInfoMap := make(map[int64]UserBasic, len(userInfoList))
+	userInfoSet := make(map[int64]UserBasic, len(userInfoList))
 
-	for _, user := range userInfoList {
-		userInfoMap[user.UserId] = user
+	for _, userInfo := range userInfoList {
+		userInfoSet[userInfo.UserId] = userInfo
 	}
 
 	result := make([]MessageListResult, 0, len(messageList))
-
 	for _, message := range messageList {
-		res := MessageListResult{
+		result = append(result, MessageListResult{
 			MessageId: message.MessageId,
-			Type:      message.Type,
+			FromInfo: MessageUserInfo{
+				UserId: userInfoSet[message.FromId].UserId,
+				Name:   userInfoSet[message.FromId].Name,
+				Avatar: userInfoSet[message.FromId].Avatar,
+			},
 			Media:     message.Media,
 			Content:   message.Content,
 			Pic:       message.Pic,
 			Url:       message.Url,
 			Desc:      message.Desc,
 			CreatedAt: message.CreatedAt,
-			IsSelf:    false,
-		}
-		if message.Type == 1 {
-			// 群聊消息
-			fromUser, _ := userInfoMap[message.FromId]
-			res.FromInfo = MessageUserInfo{
-				UserId: fromUser.UserId,
-				Name:   fromUser.Name,
-				Avatar: fromUser.Avatar,
-			}
-			if fromUser.UserId == userId {
-				res.IsSelf = true
-			}
-		} else if message.Type == 2 {
-			// 私聊消息
-			fromUser, _ := userInfoMap[message.FromId]
-			targetUser, _ := userInfoMap[message.TargetId]
-			res.FromInfo = MessageUserInfo{
-				UserId: fromUser.UserId,
-				Name:   fromUser.Name,
-				Avatar: fromUser.Avatar,
-			}
-			res.TargetInfo = MessageUserInfo{
-				UserId: targetUser.UserId,
-				Name:   targetUser.Name,
-				Avatar: targetUser.Avatar,
-			}
-			if fromUser.UserId == userId {
-				res.IsSelf = true
-			}
-		}
-
-		result = append(result, res)
+			IsSelf:    message.FromId == userId,
+		})
 	}
 
 	return result, total, nil

@@ -58,3 +58,34 @@ func CreateCommunityConversation(ctx *gin.Context) {
 		}, "")
 	}
 }
+
+// 获取会话列表
+func LoadConversationList(ctx *gin.Context) {
+	user_id := ctx.GetInt64("current_user_id")
+
+	result, err := models.LoadConversationList(user_id)
+
+	if err != nil {
+		fmt.Println(err)
+		utils.RespFail(ctx.Writer, "获取会话列表失败！")
+	} else {
+		utils.RespOk(ctx.Writer, result, "")
+	}
+}
+
+// 删除会话 - 只是删除自己能看到的历史消息
+func DeleteConversation(ctx *gin.Context) {
+	user_id := ctx.GetInt64("current_user_id")
+	conversation_id, err := strconv.Atoi(ctx.PostForm("conversation_id"))
+	if err != nil {
+		utils.RespFail(ctx.Writer, "参数有误")
+		return
+	}
+
+	errRes := models.DeleteConversation(user_id, int64(conversation_id))
+	if errRes != nil {
+		utils.RespFail(ctx.Writer, "删除失败")
+	} else {
+		utils.RespOk(ctx.Writer, nil, "删除成功")
+	}
+}

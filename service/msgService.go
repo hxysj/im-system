@@ -120,33 +120,27 @@ func GetEmojiList(ctx *gin.Context) {
 // GetMessageList
 // Summary 获取消息
 // @Tags 消息模块
-// @Param target_id query string false `好友id或者群聊id`
+// @Param conversation_id query string false `会话的id`
 // @Param limit query string false `消息数量`
 // @Param page query string false `页码`
 func GetMessageList(ctx *gin.Context) {
 	userId := ctx.GetInt64("current_user_id")
-	targetId, _ := strconv.Atoi(ctx.Query("target_id"))
-	messageType, _ := strconv.Atoi(ctx.Query("message_type"))
+	conversationId, conErr := strconv.Atoi(ctx.Query("conversation_id"))
 	limit, err := strconv.Atoi(ctx.DefaultQuery("limit", "30"))
-
-	if (messageType != 1 && messageType != 2 && messageType != 3) || err != nil {
-		utils.RespFail(ctx.Writer, "参数有误")
-		return
-	}
 
 	page, err := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 
-	if err != nil {
+	if err != nil || conErr != nil {
 		utils.RespFail(ctx.Writer, "参数有误")
 		return
 	}
 
-	if targetId <= 0 || limit <= 0 || limit > 100 || page <= 0 {
+	if conversationId <= 0 || limit <= 0 || limit > 100 || page <= 0 {
 		utils.RespFail(ctx.Writer, "参数有误")
 		return
 	}
 
-	list, total, err := models.GetMessageList(userId, int64(targetId), messageType, limit, page)
+	list, total, err := models.GetMessageList(userId, int64(conversationId), limit, page)
 
 	if err != nil {
 		fmt.Println(err)
