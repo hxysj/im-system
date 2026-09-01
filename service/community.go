@@ -18,10 +18,13 @@ func CreateCommunity(c *gin.Context) {
 	community.Name = name
 	community.Desc = desc
 	community.CommunityId = utils.NextId()
-	status, msg := models.CreateCommunity(&community)
+	status, msg, conversation_id := models.CreateCommunity(&community)
 
 	if status == 0 {
-		utils.RespOk(c.Writer, nil, msg)
+		data := map[string]int64{
+			"conversation_id": conversation_id,
+		}
+		utils.RespOk(c.Writer, data, msg)
 	} else {
 		utils.RespFail(c.Writer, msg)
 	}

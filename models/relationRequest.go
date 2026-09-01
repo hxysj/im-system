@@ -295,6 +295,13 @@ func ToggleRelationRequestStatus(r_id int64, user_id int64, status int) (int, st
 			return -1, "修改失败"
 		}
 
+		// 添加好友成功后，默认创建一个聊天会话
+		_, _, err := CreateConversation(relationRequestInfo.RequesterId, relationRequestInfo.TargetId, 2)
+		if err != nil {
+			fmt.Println(err)
+			return 0, "创建会话失败"
+		}
+
 	} else {
 
 		var community Community
@@ -336,6 +343,13 @@ func ToggleRelationRequestStatus(r_id int64, user_id int64, status int) (int, st
 		}
 
 		tx.Commit()
+
+		_, _, err := CreateConversation(relationRequestInfo.RequesterId, relationRequestInfo.TargetId, 1)
+
+		if err != nil {
+			fmt.Println(err)
+		}
+
 	}
 
 	return 0, "修改成功"

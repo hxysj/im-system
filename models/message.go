@@ -263,7 +263,11 @@ func dispatch(data []byte) {
 
 	// 要从conversation表中获取对应的成员
 	var conversationMemberList []ConversationMember
-	if err := utils.DB.Model(&ConversationMember{}).Where("conversation_id = ? AND user_id != ?", msg.ConversationId, msg.FromId).Find(&conversationMemberList).Error; err != nil {
+	if err := utils.
+		DB.
+		Model(&ConversationMember{}).
+		Where("conversation_id = ? AND user_id != ? AND left_at IS NULL", msg.ConversationId, msg.FromId).
+		Find(&conversationMemberList).Error; err != nil {
 		fmt.Println("获取会话信息表失败:", err)
 		return
 	}
@@ -304,9 +308,31 @@ func dispatch(data []byte) {
 		return
 	}
 
+	// 私聊或者群聊都是通过会话表获取目标用户信息，然后将数据发送给他们
+	for _, conversationMember := range conversationMemberList {
+		if err := tx.Model(&ConversationMember{}).
+			Where("conversation_id = ? AND user_id = ? AND left_at IS NULL", msg.ConversationId, conversationMember.UserId).
+			Updates(map[string]interface{}{
+				"unread_count": gorm.Expr("unread_count + ?", 1),
+				"visible_at":   msg.CreatedAt,
+			}).Error; err != nil {
+			tx.Rollback()
+			return
+		}
+
+		sendMsg(conversationMember.UserId, data)
+	}
+
+	if err := tx.Model(&ConversationMember{}).
+		Where("conversation_id = ? AND user_id = ?", msg.ConversationId, msg.FromId).
+		Update("visible_at", msg.CreatedAt).Error; err != nil {
+		tx.Rollback()
+		fmt.Println("更新信息失败:", err)
+		return
+	}
+
 	tx.Commit()
 
-	// 私聊或者群聊都是通过会话表获取目标用户信息，然后将数据发送给他们
 	for _, conversationMember := range conversationMemberList {
 		sendMsg(conversationMember.UserId, data)
 	}
@@ -544,4 +570,49 @@ func GetMessageList(userId int64, conversation_id int64, limit int, page int) ([
 	}
 
 	return result, total, nil
+}
+
+func ReadMessage(userId int64, conversation_id int64) error {
+
+	// var conversation Conversation
+
+	// if err := utils.DB.Model(&Conversation{}).Where("conversation_id = ?", conversation_id).First(&conversation).Error; err != nil {
+	// 	fmt.Println("获取会话失败！", err)
+	// 	return err
+	// }
+
+	// var conversationMember ConversationMember
+
+	// if err := utils.DB.Model(&ConversationMember{}).Where("user_id = ? AND conversation_id = ? AND left_at is NULL", userId, conversation_id).First(&conversationMember).Error; err != nil {
+	// 	fmt.Println("获取会话关系失败！", err)
+	// 	return err
+	// }
+
+	type readConversationRow struct {
+		LastMessageId int `gorm:"column:last_message_id"`
+	}
+
+	var row readConversationRow
+	// Take(&row) 查询一条匹配记录，并把结果放到 row 中
+	err := utils.DB.Table("conversation AS C").
+		Select("c.last_message_id").
+		Joins(`INNER JOIN conversation_member AS cm ON cm.conversation_id = c.conversation_id`).
+		Where(`c.conversation_id = ? AND cm.user_id = ? AND cm.left_at IS NULL`, conversation_id, userId).Take(&row).Error
+
+	if err != nil {
+		fmt.Println("获取会话或会话成员失败", err)
+		return err
+	}
+
+	if err := utils.DB.Model(&ConversationMember{}).
+		Where("user_id = ? AND conversation_id = ? AND left_at IS NULL", userId, conversation_id).
+		Updates(map[string]interface{}{
+			// "last_read_message_id": conversation.LastMessageId,
+			"last_read_message_id": row.LastMessageId,
+			"unread_count":         0,
+		}).Error; err != nil {
+		fmt.Println("更换会话信息失败:", err)
+		return err
+	}
+	return nil
 }

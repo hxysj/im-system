@@ -36,6 +36,8 @@ func Router() *gin.Engine {
 	RegisterCommunityRoutes(protected)
 	// 注册申请模块
 	RegisterRelationRequest(protected)
+	// 注册会话模块
+	RegisterConversationRouter(protected)
 
 	// 建立websocket连接
 	r.GET("/msg/chat", middleware.WebSocketAuthRequired(), service.Chat)

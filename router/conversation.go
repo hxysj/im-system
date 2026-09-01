@@ -10,5 +10,7 @@ func RegisterConversationRouter(r *gin.RouterGroup) {
 	{
 		conversation.POST("/getPrivateConversationId", service.CreatePrivateConversation)
 		conversation.POST("/getCommunityConversationId", service.CreateCommunityConversation)
+		conversation.GET("/getConversationList", service.LoadConversationList)
+		conversation.POST("/deleteConversation", service.DeleteConversation)
 	}
 }

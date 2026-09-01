@@ -14,5 +14,7 @@ func RegisterMessageRoutes(r *gin.RouterGroup) {
 		message.GET("/getEmojiList", service.GetEmojiList)
 		// 获取消息列表
 		message.GET("/getMessageList", service.GetMessageList)
+		// 将会话的消息设置成已读
+		message.POST("/readMessage", service.ReadMessage)
 	}
 }

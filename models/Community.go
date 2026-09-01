@@ -20,13 +20,13 @@ func (Community) TableName() string {
 	return "community"
 }
 
-func CreateCommunity(community *Community) (int, string) {
+func CreateCommunity(community *Community) (int, string, int64) {
 	if len(community.Name) == 0 {
-		return -1, "群名称不能为空"
+		return -1, "群名称不能为空", 0
 	}
 
 	if community.OwnerId == 0 {
-		return -1, "请先登录"
+		return -1, "请先登录", 0
 	}
 
 	contact := Contact{}
@@ -46,17 +46,24 @@ func CreateCommunity(community *Community) (int, string) {
 	}()
 
 	if err := tx.Create(&community).Error; err != nil {
-		return -1, "建群失败"
+		return -1, "建群失败", 0
 	}
 
 	if err := tx.Model(&Contact{}).Create(&contact).Error; err != nil {
 		tx.Rollback()
-		return -1, "建群失败"
+		return -1, "建群失败", 0
+	}
+
+	conversation_id, _, err := CreateConversation(int64(community.OwnerId), community.CommunityId, 1)
+
+	if err != nil {
+		tx.Rollback()
+		return -1, "建群失败", 0
 	}
 
 	tx.Commit()
 
-	return 0, "建群成功"
+	return 0, "建群成功", conversation_id
 }
 
 type LoadCommunityResult struct {

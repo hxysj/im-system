@@ -31,7 +31,7 @@ func GetRelationRequestList(ctx *gin.Context) {
 func ToggleRelationRequestStatus(ctx *gin.Context) {
 	request_id, _ := strconv.Atoi(ctx.PostForm("request_id"))
 	status, _ := strconv.Atoi(ctx.PostForm("status"))
-	user_id, _ := strconv.Atoi(ctx.PostForm("user_id"))
+	user_id := ctx.GetInt64("current_user_id")
 
 	if status != 2 && status != 3 {
 		utils.RespFail(ctx.Writer, "参数有误")

@@ -149,3 +149,20 @@ func GetMessageList(ctx *gin.Context) {
 		utils.RespOkList(ctx.Writer, list, total)
 	}
 }
+
+func ReadMessage(ctx *gin.Context) {
+	user_id := ctx.GetInt64("current_user_id")
+	conversation_id, err := strconv.Atoi(ctx.PostForm("conversation_id"))
+
+	if err != nil || conversation_id <= 0 {
+		utils.RespFail(ctx.Writer, "参数有误！")
+		return
+	}
+
+	resErr := models.ReadMessage(user_id, int64(conversation_id))
+	if resErr != nil {
+		utils.RespFail(ctx.Writer, "设置失败！")
+	} else {
+		utils.RespOk(ctx.Writer, nil, "设置成功！")
+	}
+}
