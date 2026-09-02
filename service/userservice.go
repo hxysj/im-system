@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	"math/rand"
-	"strconv"
 	"time"
 
 	"github.com/asaskevich/govalidator"
@@ -110,15 +109,16 @@ func CreateUser(ctx *gin.Context) {
 // @Success 200 {string} json{"code","message"}
 // @Router /user/deleteUser [get]
 func DeleteUser(ctx *gin.Context) {
-	user := models.UserBasic{}
-	id, _ := strconv.Atoi(ctx.Query("id"))
-	user.UserId = int64(id)
-	code, msg := models.DeleteUser(user)
+	userId := ctx.GetInt64("current_user_id")
 
-	if code == -1 {
-		utils.RespFail(ctx.Writer, msg)
-	} else {
-		utils.RespOk(ctx.Writer, nil, msg)
+	if err := utils.RevokeUserTokens(ctx, userId); err != nil {
+		utils.RespFail(ctx.Writer, "注销登录状态失败")
+		return
+	}
+
+	if err := models.DeleteUser(userId); err != nil {
+		utils.RespFail(ctx.Writer, "注销账号失败")
+		return
 	}
 }
 
@@ -134,7 +134,7 @@ func DeleteUser(ctx *gin.Context) {
 // @Router /user/update [post]
 func UpdateUser(ctx *gin.Context) {
 	user := models.UserBasic{}
-	id, _ := strconv.Atoi(ctx.PostForm("id"))
+	id := ctx.GetInt64("current_user_id")
 	// 获取post请求的参数
 	name := ctx.PostForm("name")
 	phone := ctx.PostForm("phone")
@@ -268,7 +268,8 @@ func SearchUser(ctx *gin.Context) {
 
 // 修改密码
 func UpdatePassword(ctx *gin.Context) {
-	user_id, _ := strconv.Atoi(ctx.PostForm("user_id"))
+	// user_id, _ := strconv.Atoi(ctx.PostForm("user_id"))
+	user_id := ctx.GetInt64("current_user_id")
 	oldPassword := ctx.PostForm("old_password")
 	newPassword := ctx.PostForm("new_password")
 	reNewPassword := ctx.PostForm("re_new_password")
@@ -292,7 +293,7 @@ func LoginOut(ctx *gin.Context) {
 	userID := ctx.GetInt64("current_user_id")
 	token := ctx.GetString("current_token_id")
 
-	user := models.FindUserById(int(userID))
+	user := models.FindUserById(userID)
 
 	if user.Salt == "" {
 		utils.RespFail(ctx.Writer, "参数有误")

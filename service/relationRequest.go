@@ -9,7 +9,7 @@ import (
 )
 
 func GetRelationRequestList(ctx *gin.Context) {
-	user_id, _ := strconv.Atoi(ctx.Query("user_id"))
+	user_id := ctx.GetInt64("current_user_id")
 
 	user := models.FindUserById(user_id)
 
@@ -49,7 +49,7 @@ func ToggleRelationRequestStatus(ctx *gin.Context) {
 
 // 好友申请
 func CreateFriendRelation(ctx *gin.Context) {
-	user_id, _ := strconv.Atoi(ctx.PostForm("user_id"))
+	user_id := ctx.GetInt64("current_user_id")
 	target_id, _ := strconv.Atoi(ctx.PostForm("target_id"))
 	desc := ctx.PostForm("context")
 
@@ -64,7 +64,7 @@ func CreateFriendRelation(ctx *gin.Context) {
 
 // 群申请
 func CreateCommunityRelation(ctx *gin.Context) {
-	user_id, _ := strconv.Atoi(ctx.PostForm("user_id"))
+	user_id := ctx.GetInt64("current_user_id")
 	target_id, _ := strconv.Atoi(ctx.PostForm("target_id"))
 	desc := ctx.PostForm("context")
 
@@ -79,7 +79,7 @@ func CreateCommunityRelation(ctx *gin.Context) {
 
 // 要求好友进入群聊
 func InviteCommunity(ctx *gin.Context) {
-	user_id, _ := strconv.Atoi(ctx.PostForm("user_id"))
+	user_id := ctx.GetInt64("current_user_id")
 	com_id, _ := strconv.Atoi(ctx.PostForm("com_id"))
 	target_id, _ := strconv.Atoi(ctx.PostForm("target_id"))
 

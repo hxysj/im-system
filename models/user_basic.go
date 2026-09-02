@@ -1,10 +1,11 @@
 package models
 
 import (
-	"fmt"
+	"time"
 
 	"github.com/hxysj/im-system/utils"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type UserBasic struct {
@@ -37,9 +38,9 @@ func GetUserList() []UserBasic {
 	return data
 }
 
-func FindUserById(id int) UserBasic {
+func FindUserById(id int64) UserBasic {
 	user := UserBasic{}
-	utils.DB.Where("user_id = ?", id).First(&user)
+	utils.DB.Where("user_id = ?", id).Take(&user)
 	return user
 }
 
@@ -67,13 +68,36 @@ func CreateUser(user UserBasic) *gorm.DB {
 }
 
 // 删除用户-软删除
-func DeleteUser(user UserBasic) (int, string) {
+func DeleteUser(userId int64) error {
 
-	if err := utils.DB.Where("user_id = ?", user.UserId).Delete(&UserBasic{}).Error; err != nil {
-		fmt.Println("delete >>> ", err)
-		return -1, "删除失败"
-	}
-	return 0, "删除用户成功！"
+	return utils.DB.Transaction(func(tx *gorm.DB) error {
+		now := time.Now()
+		var user UserBasic
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("user_id = ?", userId).Take(&user).Error; err != nil {
+			return err
+		}
+		// 设置用户离开了会话
+		if err := tx.Model(&ConversationMember{}).Where("user_id = ? AND left IS NULL", userId).
+			Updates(map[string]interface{}{
+				"left_at":      now,
+				"visible_at":   nil,
+				"unread_count": 0,
+			}).Error; err != nil {
+			return err
+		}
+		// 删除对应的关系表
+		if err := tx.Where("owen_id = ? OR (type = 1 AND target_id = ?)", userId, userId).
+			Delete(&Contact{}).Error; err != nil {
+			return err
+		}
+		// 为通过的申请记录设置成失效
+		if err := tx.Model(&RelationRequest{}).Where("status = 1 AND (requester_id = ? OR target_id = ? OR invite_from = ?)", userId, userId, userId).
+			Update("status", 4).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&user).Error
+	})
 }
 
 // 更新用户信息
@@ -98,7 +122,7 @@ func FindUserByPhoneOrNameOrEmail(key string) UserBasic {
 // 修改用户密码
 func UpdateUserPassword(user_id int64, oldPassword string, newPassword string) (int, string) {
 
-	user := FindUserById(int(user_id))
+	user := FindUserById(user_id)
 
 	oldPwd := utils.MakePassword(oldPassword, user.Salt)
 

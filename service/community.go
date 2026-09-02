@@ -1,16 +1,13 @@
 package service
 
 import (
-	"fmt"
-	"strconv"
-
 	"github.com/gin-gonic/gin"
 	"github.com/hxysj/im-system/models"
 	"github.com/hxysj/im-system/utils"
 )
 
 func CreateCommunity(c *gin.Context) {
-	ownerId, _ := strconv.Atoi(c.PostForm("owner_id"))
+	ownerId := c.GetInt64("current_user_id")
 	name := c.PostForm("name")
 	desc := c.PostForm("desc")
 	community := models.Community{}
@@ -31,13 +28,7 @@ func CreateCommunity(c *gin.Context) {
 }
 
 func LoadCommunity(c *gin.Context) {
-	user_id, err := strconv.Atoi(c.PostForm("user_id"))
-
-	if err != nil || user_id <= 0 {
-		fmt.Println(err)
-		utils.RespFail(c.Writer, "参数有误")
-		return
-	}
+	user_id := c.GetInt64("current_user_id")
 
 	status, data, msg := models.LoadCommunity(uint(user_id))
 

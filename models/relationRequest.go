@@ -13,7 +13,7 @@ type RelationRequest struct {
 	Type        int   // 1好友申请  2 加群申请  3群邀请
 	RequesterId int64
 	TargetId    int64
-	Status      int   // 1待处理 2通过  3拒绝
+	Status      int   // 1待处理 2通过  3拒绝 4失效
 	InviteFrom  int64 // 邀请人的id
 	Message     string
 }
@@ -58,12 +58,15 @@ func GetRelationRequestList(user_id int64) ([]RelationRequestItem, error) {
 	// 搜素type=1（好友申请）并且target = 用户的 （对方发起申请） 或者requester 是自己的（自己发起申请） 或者 type = 3（群邀请）并且requester_id = 用户的
 	query := utils.DB.Where("(type = ? AND target_id = ?) OR"+
 		"(type = ? AND requester_id = ?) OR"+
+		"(type = ? AND requester_id = ?) OR"+
 		"(type = ? AND requester_id = ?)",
 		1,
 		user_id,
 		1,
 		user_id,
 		3,
+		user_id,
+		2,
 		user_id,
 	)
 	// 如果用户自己拥有的群

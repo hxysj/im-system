@@ -2233,7 +2233,12 @@
             },
             requestIsOutgoing(item) {
               const type = Number(item.type ?? item.Type)
-              return type === 1 && Boolean(item.target_user || item.TargetUser)
+              const targetUser = item.target_user || item.TargetUser
+              if (type === 1) return Boolean(targetUser)
+              return (
+                type === 2 &&
+                this.userId(targetUser) === String(this.session.user?.id || "")
+              )
             },
             requestPersonName(item) {
               const type = Number(item.type ?? item.Type)
@@ -2256,8 +2261,13 @@
                   ? `已向 ${this.requestPersonName(item)} 发送好友申请`
                   : `${this.requestPersonName(item)} 请求添加好友`
               }
-              if (type === 2)
-                return `${this.requestPersonName(item)} 请求加入群聊`
+              if (type === 2) {
+                const communityName =
+                  this.communityName(item.community || item.Community) || "群聊"
+                return this.requestIsOutgoing(item)
+                  ? `已申请加入 ${communityName}`
+                  : `${this.requestPersonName(item)} 请求加入群聊`
+              }
               if (type === 3) {
                 return `${this.communityName(item.community || item.Community) || "群聊"} 邀请你加入`
               }
@@ -2268,16 +2278,21 @@
               const message = item.message || item.Message
               if (message) return message
               if (community) return this.communityName(community)
+              if (Number(item.status ?? item.Status) === 4)
+                return "该申请已失效"
               if (this.requestIsOutgoing(item)) return "等待对方处理"
               return "请确认是否接受这条申请"
             },
             requestStatusText(item) {
               const status = Number(item.status ?? item.Status)
-              return status === 1
-                ? "待处理"
-                : status === 2
-                  ? "已接受"
-                  : "已拒绝"
+              return (
+                {
+                  1: "待处理",
+                  2: "已接受",
+                  3: "已拒绝",
+                  4: "已失效"
+                }[status] || "未知状态"
+              )
             },
             requestCanAct(item) {
               // 自己发出的好友申请只展示状态，不能由发送方处理。
@@ -2325,8 +2340,14 @@
                 if ((payload.code ?? payload.Code) !== 0)
                   throw new Error(payload.msg || payload.message || "操作失败")
                 this.showToast(status === 2 ? "已接受申请" : "已拒绝申请")
-                await this.refreshRequests()
-                await this.refreshFriends()
+                const type = Number(item.type ?? item.Type)
+                const refreshTasks = [this.refreshRequests()]
+                if (type === 1) refreshTasks.push(this.refreshFriends())
+                if (type === 3 && status === 2) {
+                  refreshTasks.push(this.refreshCommunities())
+                  refreshTasks.push(this.refreshConversations())
+                }
+                await Promise.all(refreshTasks)
               } catch (error) {
                 this.showToast(
                   error.response?.data?.msg || error.message || "操作失败",
@@ -2930,6 +2951,27 @@
                 if (node) node.scrollTop = node.scrollHeight
               })
             },
+            clearLocalSession() {
+              this.readTimers.forEach((timer) => clearTimeout(timer))
+              this.readTimers.clear()
+              const socket = this.socket
+              this.socket = null
+              this.socketConnected = false
+              if (socket) socket.close()
+              sessionStorage.removeItem("im-session")
+              this.session = { user: null, token: "" }
+              this.users = []
+              this.friends = []
+              this.communities = []
+              this.relationRequests = []
+              this.conversations = []
+              this.userSearchResult = null
+              this.selectedUser = null
+              this.selectedConversation = null
+              this.messages = []
+              this.currentView = "chat"
+              this.contactSection = "friends"
+            },
             async logout() {
               let message = "退出登录成功"
               let type = "success"
@@ -2949,21 +2991,7 @@
                   "退出登录失败"
                 type = "error"
               } finally {
-                this.readTimers.forEach((timer) => clearTimeout(timer))
-                this.readTimers.clear()
-                if (this.socket) this.socket.close()
-                sessionStorage.removeItem("im-session")
-                this.session = { user: null, token: "" }
-                this.users = []
-                this.friends = []
-                this.communities = []
-                this.conversations = []
-                this.userSearchResult = null
-                this.selectedUser = null
-                this.selectedConversation = null
-                this.messages = []
-                this.currentView = "chat"
-                this.contactSection = "friends"
+                this.clearLocalSession()
                 this.showToast(message, type)
               }
             },
@@ -3093,16 +3121,20 @@
               )
                 return
               try {
-                // 注销仅提交当前会话中的用户 ID，禁止从好友列表传入删除目标。
-                const response = await api.get("/user/deleteUser", {
-                  params: { id: String(this.session.user.id) }
-                })
-                if (response.data?.code !== 0)
-                  throw new Error(response.data?.message || "注销失败")
-                this.logout()
+                const response = await api.get("/user/deleteUser")
+                const body = response.data || {}
+                if ((body.code ?? body.Code) !== 0)
+                  throw new Error(body.msg || body.message || "注销失败")
+                this.clearLocalSession()
                 this.showToast("账号已注销")
               } catch (error) {
-                this.showToast(error.message || "注销失败", "error")
+                this.showToast(
+                  error.response?.data?.msg ||
+                    error.response?.data?.message ||
+                    error.message ||
+                    "注销失败",
+                  "error"
+                )
               }
             }
           }
