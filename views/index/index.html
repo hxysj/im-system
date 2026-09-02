@@ -1620,8 +1620,11 @@
               selectedConversation: null,
               messages: [],
               messageLoading: false,
+              messageHistoryRequest: 0,
+              conversationDeleting: false,
               socket: null,
               socketConnected: false,
+              readTimers: new Map(),
               toast: {
                 visible: false,
                 message: "",
@@ -1696,6 +1699,7 @@
                   this.refreshConversations(),
                   this.refreshFriends()
                 ])
+                this.connectSocket()
               } catch (error) {
                 sessionStorage.removeItem("im-session")
               }
@@ -2010,6 +2014,7 @@
                   JSON.stringify(this.session)
                 )
                 this.showToast("登录成功")
+                this.connectSocket()
                 await Promise.all([
                   this.refreshConversations(),
                   this.refreshFriends()
@@ -2361,9 +2366,8 @@
               await this.openContacts()
             },
             async openContacts() {
-              if (this.socket) this.socket.close()
-              this.socket = null
-              this.socketConnected = false
+              this.messageHistoryRequest += 1
+              this.messageLoading = false
               this.selectedUser = null
               this.selectedConversation = null
               this.messages = []
@@ -2371,9 +2375,8 @@
               await this.refreshContacts()
             },
             async openSessions() {
-              if (this.socket) this.socket.close()
-              this.socket = null
-              this.socketConnected = false
+              this.messageHistoryRequest += 1
+              this.messageLoading = false
               this.selectedUser = null
               this.selectedConversation = null
               this.messages = []
@@ -2381,9 +2384,8 @@
               await this.refreshConversations()
             },
             async openProfile() {
-              if (this.socket) this.socket.close()
-              this.socket = null
-              this.socketConnected = false
+              this.messageHistoryRequest += 1
+              this.messageLoading = false
               this.selectedUser = null
               this.selectedConversation = null
               this.messages = []
@@ -2546,21 +2548,23 @@
             },
             async openConversation(conversation) {
               if (!conversation?.id) return
-              if (this.socket) this.socket.close()
-              this.socket = null
-              this.socketConnected = false
               this.currentView = "chat"
               this.selectedConversation = conversation
               this.selectedUser = conversation.target
               this.messages = []
               this.emojiPanelOpen = false
-              await this.loadMessageHistory()
               this.connectSocket()
+              const loaded = await this.loadMessageHistory()
+              if (
+                loaded &&
+                this.selectedConversation?.id === conversation.id &&
+                Number(conversation.unreadCount) > 0
+              )
+                this.scheduleConversationRead(conversation.id)
             },
             closeConversation() {
-              if (this.socket) this.socket.close()
-              this.socket = null
-              this.socketConnected = false
+              this.messageHistoryRequest += 1
+              this.messageLoading = false
               this.selectedUser = null
               this.selectedConversation = null
               this.messages = []
@@ -2570,6 +2574,7 @@
             async loadMessageHistory() {
               const conversationId = this.selectedConversation?.id
               if (!conversationId) return
+              const requestId = ++this.messageHistoryRequest
               this.messageLoading = true
               try {
                 const response = await api.get("/msg/getMessageList", {
@@ -2579,6 +2584,11 @@
                     page: 1
                   }
                 })
+                if (
+                  requestId !== this.messageHistoryRequest ||
+                  this.selectedConversation?.id !== conversationId
+                )
+                  return false
                 const payload = response.data || {}
                 if (this.responseCode(payload) !== 0)
                   throw new Error(
@@ -2587,7 +2597,7 @@
                 const list = this.responseData(payload) ?? payload.Rows ?? []
                 if (!Array.isArray(list))
                   throw new Error("历史消息响应格式错误")
-                this.messages = list
+                const historyMessages = list
                   .slice()
                   .reverse()
                   .map((item) => {
@@ -2608,8 +2618,24 @@
                       time: this.formatMessageTime(createdAt)
                     }
                   })
+                const historyIds = new Set(
+                  historyMessages.map((message) => message.id)
+                )
+                // 保留历史请求期间已由 WebSocket 收到的新消息。
+                this.messages = [
+                  ...historyMessages,
+                  ...this.messages.filter(
+                    (message) => !historyIds.has(message.id)
+                  )
+                ]
                 this.scrollMessages()
+                return true
               } catch (error) {
+                if (
+                  requestId !== this.messageHistoryRequest ||
+                  this.selectedConversation?.id !== conversationId
+                )
+                  return false
                 this.messages = []
                 this.showToast(
                   error.response?.data?.msg ||
@@ -2617,42 +2643,137 @@
                     "历史消息加载失败",
                   "error"
                 )
+                return false
               } finally {
-                this.messageLoading = false
+                if (requestId === this.messageHistoryRequest)
+                  this.messageLoading = false
+              }
+            },
+            async markConversationRead(conversationId) {
+              if (!conversationId) return
+              try {
+                const response = await api.post(
+                  "/msg/readMessage",
+                  this.formBody({ conversation_id: conversationId })
+                )
+                const payload = response.data || {}
+                if (this.responseCode(payload) !== 0)
+                  throw new Error(payload.msg || "设置已读失败")
+
+                // 后端确认后再同步本地未读数，避免刷新时状态反复。
+                this.conversations = this.conversations.map((conversation) =>
+                  conversation.id === String(conversationId)
+                    ? { ...conversation, unreadCount: 0 }
+                    : conversation
+                )
+                if (
+                  this.selectedConversation?.id === String(conversationId)
+                ) {
+                  this.selectedConversation =
+                    this.conversations.find(
+                      (conversation) =>
+                        conversation.id === String(conversationId)
+                    ) || this.selectedConversation
+                }
+              } catch (error) {
+                this.showToast(
+                  error.response?.data?.msg ||
+                    error.message ||
+                    "设置已读失败",
+                  "error"
+                )
+              }
+            },
+            scheduleConversationRead(conversationId) {
+              const id = String(conversationId || "")
+              if (!id) return
+              clearTimeout(this.readTimers.get(id))
+              const timer = setTimeout(() => {
+                this.readTimers.delete(id)
+                void this.markConversationRead(id)
+              }, 100)
+              this.readTimers.set(id, timer)
+            },
+            cancelConversationRead(conversationId) {
+              const id = String(conversationId || "")
+              if (!id) return
+              clearTimeout(this.readTimers.get(id))
+              this.readTimers.delete(id)
+            },
+            async deleteConversation() {
+              const conversation = this.selectedConversation
+              if (!conversation?.id || this.conversationDeleting) return
+              if (
+                !window.confirm(
+                  `确定删除与“${this.conversationName(conversation)}”的会话吗？`
+                )
+              )
+                return
+
+              this.conversationDeleting = true
+              try {
+                const response = await api.post(
+                  "/conversation/deleteConversation",
+                  this.formBody({ conversation_id: conversation.id })
+                )
+                const payload = response.data || {}
+                if (this.responseCode(payload) !== 0)
+                  throw new Error(payload.msg || "删除会话失败")
+
+                this.conversations = this.conversations.filter(
+                  (item) => item.id !== conversation.id
+                )
+                this.cancelConversationRead(conversation.id)
+                if (this.selectedConversation?.id === conversation.id)
+                  this.closeConversation()
+                this.showToast("会话已删除")
+              } catch (error) {
+                this.showToast(
+                  error.response?.data?.msg ||
+                    error.message ||
+                    "删除会话失败",
+                  "error"
+                )
+              } finally {
+                this.conversationDeleting = false
               }
             },
             connectSocket() {
+              if (!this.session.user || !this.session.token) return
               if (
-                !this.selectedConversation ||
-                !this.session.user ||
-                !this.session.token
+                this.socket &&
+                (this.socket.readyState === WebSocket.OPEN ||
+                  this.socket.readyState === WebSocket.CONNECTING)
               )
                 return
               if (this.socket) this.socket.close()
               const base = API_ROOT || window.location.origin
               const wsBase = base.replace(/^http/, "ws")
               // 原生 WebSocket 不能复用 Axios 请求头，Token 通过查询参数交给鉴权中间件。
-              const userId = encodeURIComponent(String(this.session.user.id))
               const token = encodeURIComponent(this.session.token)
-              this.socket = new WebSocket(
-                `${wsBase}/msg/chat?userId=${userId}&token=${token}`
-              )
-              this.socket.onopen = () => {
+              const socket = new WebSocket(`${wsBase}/msg/chat?token=${token}`)
+              this.socket = socket
+              socket.onopen = () => {
                 this.socketConnected = true
               }
-              this.socket.onclose = () => {
-                this.socketConnected = false
+              socket.onclose = () => {
+                if (this.socket === socket) {
+                  this.socket = null
+                  this.socketConnected = false
+                }
               }
-              this.socket.onerror = () => {
-                this.socketConnected = false
+              socket.onerror = () => {
+                if (this.socket === socket) this.socketConnected = false
               }
-              this.socket.onmessage = (event) => {
+              socket.onmessage = (event) => {
                 if (event.data === "欢迎进入im-system系统的聊天室！") return
                 let content = event.data
                 let media = 1
                 let url = ""
                 let fromId = ""
                 let conversationId = ""
+                let messageId = ""
+                let createdAt = new Date().toISOString()
                 try {
                   const payload = JSON.parse(event.data)
                   content = payload.Content || payload.content || event.data
@@ -2668,12 +2789,16 @@
                       payload.conversation_id ||
                       ""
                   )
+                  messageId = String(
+                    payload.message_id || payload.MessageId || ""
+                  )
+                  createdAt =
+                    payload.CreatedAt || payload.created_at || createdAt
                 } catch (error) {
                   return
                 }
                 if (!conversationId) return
                 const selectedId = this.selectedConversation?.id || ""
-                const createdAt = new Date().toISOString()
                 this.updateConversationPreview(
                   conversationId,
                   content,
@@ -2686,7 +2811,7 @@
                   return
                 }
                 this.messages.push({
-                  id: `${Date.now()}-${Math.random()}`,
+                  id: messageId || `${Date.now()}-${Math.random()}`,
                   content,
                   media,
                   url,
@@ -2695,6 +2820,7 @@
                   createdAt,
                   time: this.formatMessageTime(createdAt)
                 })
+                this.scheduleConversationRead(conversationId)
                 this.scrollMessages()
               }
             },
@@ -2710,9 +2836,8 @@
               const conversationId = this.selectedConversation?.id
               if (!conversationId || !this.session.user) return
               const packet = {
-                conversationId: Number(conversationId),
+                conversation_id: Number(conversationId),
                 media,
-                fromId: Number(this.session.user.id),
                 content,
                 url
               }
@@ -2824,6 +2949,8 @@
                   "退出登录失败"
                 type = "error"
               } finally {
+                this.readTimers.forEach((timer) => clearTimeout(timer))
+                this.readTimers.clear()
                 if (this.socket) this.socket.close()
                 sessionStorage.removeItem("im-session")
                 this.session = { user: null, token: "" }

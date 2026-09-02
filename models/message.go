@@ -3,7 +3,6 @@ package models
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/hxysj/im-system/utils"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Message struct {
@@ -179,103 +179,109 @@ func recvProc(userId int64, node *Node) {
 			}
 			return
 		}
-		broadMsg(data) //广播消息
+		dispatch(userId, data) //广播消息
 		fmt.Println("[ws]<<<<<<  ", string(data))
 	}
 }
 
-var udpSendChan chan []byte = make(chan []byte, 1024)
+// var udpSendChan chan []byte = make(chan []byte, 1024)
 
-func broadMsg(data []byte) {
-	udpSendChan <- data //将收到的消息传入到广播的通道中去
-}
+// func broadMsg(data []byte) {
+// 	udpSendChan <- data //将收到的消息传入到广播的通道中去
+// }
 
 // 初始化执行的函数
-func init() {
-	// 创建广播发送消息的进程
-	go udpSendProc()
-	// 船舰广播接收消息的进程
-	go udpRecvProc()
-	fmt.Println("init goruntine")
-}
+// func init() {
+// 	// 创建广播发送消息的进程
+// 	go udpSendProc()
+// 	// 船舰广播接收消息的进程
+// 	go udpRecvProc()
+// 	fmt.Println("init goruntine")
+// }
 
 // UDP服务发送消息
-func udpSendProc() {
-	// 建立 UDP 连接
-	con, err := net.DialUDP("udp", nil, &net.UDPAddr{
-		IP:   net.IPv4(127, 0, 0, 1),
-		Port: 3000,
-	})
+// func udpSendProc() {
+// 	// 建立 UDP 连接
+// 	con, err := net.DialUDP("udp", nil, &net.UDPAddr{
+// 		IP:   net.IPv4(127, 0, 0, 1),
+// 		Port: 3000,
+// 	})
 
-	// 函数结束之前会触发执行，关闭UDP的服务
-	defer con.Close()
+// 	// 函数结束之前会触发执行，关闭UDP的服务
+// 	defer con.Close()
 
-	if err != nil {
-		fmt.Println(err)
-	}
+// 	if err != nil {
+// 		fmt.Println(err)
+// 	}
 
-	for {
-		select {
-		// 监听UDP通道的消息
-		case data := <-udpSendChan:
-			fmt.Println("[udpSendProc] >>> ", string(data))
-			_, err := con.Write(data)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-		}
-	}
-}
+// 	for {
+// 		select {
+// 		// 监听UDP通道的消息
+// 		case data := <-udpSendChan:
+// 			fmt.Println("[udpSendProc] >>> ", string(data))
+// 			_, err := con.Write(data)
+// 			if err != nil {
+// 				fmt.Println(err)
+// 				return
+// 			}
+// 		}
+// 	}
+// }
 
-// UDP接收消息
-func udpRecvProc() {
-	con, err := net.ListenUDP("udp", &net.UDPAddr{
-		IP:   net.IPv4zero, // 0.0.0.0 监听所有网卡
-		Port: 3000,
-	})
+// // UDP接收消息
+// func udpRecvProc() {
+// 	con, err := net.ListenUDP("udp", &net.UDPAddr{
+// 		IP:   net.IPv4zero, // 0.0.0.0 监听所有网卡
+// 		Port: 3000,
+// 	})
 
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+// 	if err != nil {
+// 		fmt.Println(err)
+// 		return
+// 	}
 
-	defer con.Close()
-	for {
-		var buf [512]byte           //创建 512 字节的缓冲区
-		n, err := con.Read(buf[0:]) //读取 UDP 数据到缓冲区
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		dispatch(buf[0:n]) //将收到的数据分发处理
-	}
-}
+// 	defer con.Close()
+// 	for {
+// 		var buf [512]byte           //创建 512 字节的缓冲区
+// 		n, err := con.Read(buf[0:]) //读取 UDP 数据到缓冲区
+// 		if err != nil {
+// 			fmt.Println(err)
+// 			return
+// 		}
+// 		dispatch(buf[0:n]) //将收到的数据分发处理
+// 	}
+// }
 
 // 后端调度逻辑处理
-func dispatch(data []byte) {
-	msg := Message{}
-	err := json.Unmarshal(data, &msg)
-	if err != nil {
+func dispatch(userId int64, data []byte) {
+	type SendMessageRequest struct {
+		ConversationId int64  `json:"conversation_id"`
+		Media          int    `json:"media"`
+		Content        string `json:"content"`
+		Pic            string `json:"pic"`
+		Url            string `json:"url"`
+		Desc           string `json:"desc"`
+	}
+
+	var req SendMessageRequest
+	if err := json.Unmarshal(data, &req); err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	// 要从conversation表中获取对应的成员
-	var conversationMemberList []ConversationMember
-	if err := utils.
-		DB.
-		Model(&ConversationMember{}).
-		Where("conversation_id = ? AND user_id != ? AND left_at IS NULL", msg.ConversationId, msg.FromId).
-		Find(&conversationMemberList).Error; err != nil {
-		fmt.Println("获取会话信息表失败:", err)
-		return
+	msg := Message{
+		MessageId:      utils.NextId(),
+		FromId:         userId,
+		ConversationId: req.ConversationId,
+		Media:          req.Media,
+		Content:        req.Content,
+		Pic:            req.Pic,
+		Url:            req.Url,
+		Desc:           req.Desc,
 	}
 
-	fmt.Println("[dispatch] >>> ", msg.FromId, string(data))
+	fmt.Println("[dispatch] >>> ", userId, string(data))
 	// 将消息存储到数据库中
-
-	msg.MessageId = utils.NextId()
 	tx := utils.DB.Begin()
 
 	defer func() {
@@ -284,27 +290,57 @@ func dispatch(data []byte) {
 		}
 	}()
 
+	var conversation Conversation
+	// 锁住会话
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("conversation_id = ? AND status = 1", msg.ConversationId).
+		Take(&conversation).Error; err != nil {
+		tx.Rollback()
+		return
+	}
+
+	// 要从conversation表中获取所有的成员
+	var memberList []ConversationMember
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("conversation_id = ?  AND left_at IS NULL", msg.ConversationId).
+		Order("user_id ASC").
+		Find(&memberList).Error; err != nil {
+		fmt.Println("获取会话信息表失败:", err)
+		tx.Rollback()
+		return
+	}
+
+	senderExists := false
+	conversationMemberList := make([]ConversationMember, 0, len(memberList))
+
+	for _, member := range memberList {
+		if member.UserId == userId {
+			senderExists = true
+			continue
+		}
+		conversationMemberList = append(conversationMemberList, member)
+	}
+
+	if !senderExists {
+		tx.Rollback()
+		return
+	}
+
 	if err := tx.Create(&msg).Error; err != nil {
 		tx.Rollback()
 		fmt.Print("保存消息失败：", err)
 		return
 	}
 
-	var conversation Conversation
-	if err := tx.Model(&Conversation{}).Where("conversation_id = ?", msg.ConversationId).First(&conversation).Error; err != nil {
-		tx.Rollback()
-		fmt.Println("获取会话失败:", err)
-		return
-	}
-
-	if err := tx.Model(&Conversation{}).
-		Where("conversation_id = ?", msg.ConversationId).
+	result := tx.Model(&Conversation{}).
+		Where("conversation_id = ? AND status = ?", msg.ConversationId, 1).
 		Updates(map[string]interface{}{
 			"last_message_id": msg.MessageId,
 			"last_message_at": msg.CreatedAt,
-		}).Error; err != nil {
+		})
+	if result.Error != nil || result.RowsAffected != 1 {
 		tx.Rollback()
-		fmt.Println("更新会话最后消息失败：", err)
+		fmt.Println("更新会话最后消息失败：", result.Error, result.RowsAffected)
 		return
 	}
 
@@ -319,22 +355,28 @@ func dispatch(data []byte) {
 			tx.Rollback()
 			return
 		}
-
-		sendMsg(conversationMember.UserId, data)
 	}
 
 	if err := tx.Model(&ConversationMember{}).
-		Where("conversation_id = ? AND user_id = ?", msg.ConversationId, msg.FromId).
+		Where("conversation_id = ? AND user_id = ?", msg.ConversationId, userId).
 		Update("visible_at", msg.CreatedAt).Error; err != nil {
 		tx.Rollback()
 		fmt.Println("更新信息失败:", err)
 		return
 	}
 
-	tx.Commit()
+	eventData, err := json.Marshal(msg)
+	if err != nil {
+		tx.Rollback()
+		return
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return
+	}
 
 	for _, conversationMember := range conversationMemberList {
-		sendMsg(conversationMember.UserId, data)
+		sendMsg(conversationMember.UserId, eventData)
 	}
 }
 
@@ -500,10 +542,14 @@ type MessageListResult struct {
 func GetMessageList(userId int64, conversation_id int64, limit int, page int) ([]MessageListResult, int64, error) {
 	var conversationMember ConversationMember
 
-	if err := utils.DB.Model(&ConversationMember{}).
-		Where("user_id = ? AND conversation_id = ?", userId, conversation_id).
-		First(&conversationMember).
-		Error; err != nil {
+	if err := utils.DB.
+		Table("conversation_member AS cm").
+		Select("cm.*").
+		Joins(`
+			INNER JOIN conversation AS c ON c.conversation_id = cm.conversation_id
+		`).
+		Where(`cm.user_id = ? AND cm.conversation_id = ? AND cm.left_at IS NULL AND c.status = 1`, userId, conversation_id).
+		Take(&conversationMember).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -573,46 +619,33 @@ func GetMessageList(userId int64, conversation_id int64, limit int, page int) ([
 }
 
 func ReadMessage(userId int64, conversation_id int64) error {
+	return utils.DB.Transaction(func(tx *gorm.DB) error {
+		type readConversationRow struct {
+			LastMessageId int64 `gorm:"column:last_message_id"`
+		}
+		var row readConversationRow
+		if err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Table("conversation AS C").
+			Select("c.last_message_id").
+			Joins("INNER JOIN conversation_member AS cm ON cm.conversation_id = c.conversation_id").
+			Where("c.conversation_id = ? AND cm.user_id = ? AND cm.left_at IS NULL AND c.status = 1", conversation_id, userId).
+			Take(&row).Error; err != nil {
+			return err
+		}
+		result := tx.Model(&ConversationMember{}).
+			Where("user_id = ? AND conversation_id = ? AND left_at IS NULL", userId, conversation_id).
+			Updates(map[string]interface{}{
+				"last_read_message_id": row.LastMessageId,
+				"unread_count":         0,
+			})
+		if result.Error != nil {
+			return result.Error
+		}
 
-	// var conversation Conversation
-
-	// if err := utils.DB.Model(&Conversation{}).Where("conversation_id = ?", conversation_id).First(&conversation).Error; err != nil {
-	// 	fmt.Println("获取会话失败！", err)
-	// 	return err
-	// }
-
-	// var conversationMember ConversationMember
-
-	// if err := utils.DB.Model(&ConversationMember{}).Where("user_id = ? AND conversation_id = ? AND left_at is NULL", userId, conversation_id).First(&conversationMember).Error; err != nil {
-	// 	fmt.Println("获取会话关系失败！", err)
-	// 	return err
-	// }
-
-	type readConversationRow struct {
-		LastMessageId int `gorm:"column:last_message_id"`
-	}
-
-	var row readConversationRow
-	// Take(&row) 查询一条匹配记录，并把结果放到 row 中
-	err := utils.DB.Table("conversation AS C").
-		Select("c.last_message_id").
-		Joins(`INNER JOIN conversation_member AS cm ON cm.conversation_id = c.conversation_id`).
-		Where(`c.conversation_id = ? AND cm.user_id = ? AND cm.left_at IS NULL`, conversation_id, userId).Take(&row).Error
-
-	if err != nil {
-		fmt.Println("获取会话或会话成员失败", err)
-		return err
-	}
-
-	if err := utils.DB.Model(&ConversationMember{}).
-		Where("user_id = ? AND conversation_id = ? AND left_at IS NULL", userId, conversation_id).
-		Updates(map[string]interface{}{
-			// "last_read_message_id": conversation.LastMessageId,
-			"last_read_message_id": row.LastMessageId,
-			"unread_count":         0,
-		}).Error; err != nil {
-		fmt.Println("更换会话信息失败:", err)
-		return err
-	}
-	return nil
+		if result.RowsAffected != 1 {
+			return gorm.ErrRecordNotFound
+		}
+		return nil
+	})
 }

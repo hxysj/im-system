@@ -119,6 +119,16 @@
     >
       <i data-lucide="user-round"></i>
     </button>
+    <button
+      class="icon-button danger"
+      type="button"
+      title="删除会话"
+      aria-label="删除会话"
+      :disabled="conversationDeleting"
+      @click="deleteConversation"
+    >
+      <i data-lucide="trash-2"></i>
+    </button>
   </header>
 
   <div ref="messageStream" class="message-stream">

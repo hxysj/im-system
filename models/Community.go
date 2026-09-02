@@ -54,7 +54,7 @@ func CreateCommunity(community *Community) (int, string, int64) {
 		return -1, "建群失败", 0
 	}
 
-	conversation_id, _, err := CreateConversation(int64(community.OwnerId), community.CommunityId, 1)
+	conversation_id, _, err := CreateConversationTx(tx, int64(community.OwnerId), community.CommunityId, 1)
 
 	if err != nil {
 		tx.Rollback()

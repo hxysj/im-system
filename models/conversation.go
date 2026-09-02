@@ -7,6 +7,7 @@ import (
 
 	"github.com/hxysj/im-system/utils"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // 唯一索引能够指定字段或者字段组合在数据库中不能重复
@@ -75,9 +76,22 @@ func IsMutualFriend(tx *gorm.DB, userId int64, targetUserId int64) (bool, error)
 }
 
 func CreateConversation(userId int64, target int64, cType int) (int64, string, error) {
+	var conversationId int64
+	var msg string
+
+	err := utils.DB.Transaction(func(tx *gorm.DB) error {
+		var err error
+		conversationId, msg, err = CreateConversationTx(tx, userId, target, cType)
+		return err
+	})
+
+	return conversationId, msg, err
+}
+
+func CreateConversationTx(tx *gorm.DB, userId int64, target int64, cType int) (int64, string, error) {
 	// 如果cType为1 的话是群聊  2是私聊
 	if cType == 2 {
-		isFriend, err := IsMutualFriend(utils.DB, userId, target)
+		isFriend, err := IsMutualFriend(tx, userId, target)
 
 		if err != nil {
 			return 0, "好友关系查询失败", err
@@ -95,7 +109,7 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 			lowUserId, HighUserId = HighUserId, lowUserId
 		}
 
-		result := utils.DB.Model(&Conversation{}).Where("private_low_user_id = ? AND private_high_user_id = ? AND type = 2", lowUserId, HighUserId).First(&conversation)
+		result := tx.Model(&Conversation{}).Where("private_low_user_id = ? AND private_high_user_id = ? AND type = 2", lowUserId, HighUserId).First(&conversation)
 
 		if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return 0, "查询会话失败", result.Error
@@ -105,7 +119,7 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 			// 会话存在的话需要检查用户是否可以看见，不可以的话要更新visibleAt
 			var conversationMember ConversationMember
 
-			result := utils.DB.Model(&ConversationMember{}).Where("conversation_id = ? AND user_id = ?", conversation.ConversationId, userId).First(&conversationMember)
+			result := tx.Model(&ConversationMember{}).Where("conversation_id = ? AND user_id = ?", conversation.ConversationId, userId).First(&conversationMember)
 
 			// 需要判断用户是否关联对应的会话
 			if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -119,27 +133,24 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 				}
 				now := time.Now()
 				conversationMember.VisibleAt = &now
-				if err := utils.DB.Model(&ConversationMember{}).Create(conversationMember).Error; err != nil {
+				if err := tx.Model(&ConversationMember{}).Create(conversationMember).Error; err != nil {
 					return 0, "查询会话失败", err
 				}
 				return conversation.ConversationId, "", nil
 			}
 
 			now := time.Now()
-			if err := utils.DB.Model(&ConversationMember{}).Where("conversation_id = ? AND user_id = ?", conversation.ConversationId, userId).Update("visible_at", now).Error; err != nil {
+			if err := tx.Model(&ConversationMember{}).
+				Where("conversation_id = ? AND user_id = ?", conversation.ConversationId, userId).
+				Updates(map[string]interface{}{
+					"visible_at": now,
+					"left_at":    nil,
+				}).Error; err != nil {
 				return 0, "新建会话失败", err
 			}
 
 			return conversation.ConversationId, "", nil
 		} else {
-			tx := utils.DB.Begin()
-
-			defer func() {
-				if r := recover(); r != nil {
-					tx.Rollback()
-				}
-			}()
-
 			conversation = Conversation{
 				ConversationId:    utils.NextId(),
 				Type:              2,
@@ -147,7 +158,6 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 				PrivateHighUserId: &HighUserId,
 			}
 			if err := tx.Model(&Conversation{}).Create(conversation).Error; err != nil {
-				tx.Rollback()
 				return 0, "新建会话失败", err
 			}
 			now := time.Now()
@@ -155,10 +165,10 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 				ConversationId: conversation.ConversationId,
 				UserId:         userId,
 				VisibleAt:      &now,
+				LeftAt:         nil,
 			}
 
 			if err := tx.Model(&ConversationMember{}).Create(conversationMember).Error; err != nil {
-				tx.Rollback()
 				return 0, "新建会话失败", err
 			}
 
@@ -168,11 +178,8 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 			}
 
 			if err := tx.Model(&ConversationMember{}).Create(targetConversationMember).Error; err != nil {
-				tx.Rollback()
 				return 0, "新建会话失败", err
 			}
-
-			tx.Commit()
 
 			return conversation.ConversationId, "", nil
 		}
@@ -180,32 +187,24 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 	} else if cType == 1 {
 		// 判断群聊是否存在,判断用户是否在群聊中
 		var community Community
-		if err := utils.DB.Model(&Community{}).Where("community_id = ?", target).First(&community).Error; err != nil {
+		if err := tx.Model(&Community{}).Where("community_id = ?", target).First(&community).Error; err != nil {
 			return 0, "查询会话失败", err
 		}
 
 		var contact Contact
-		if err := utils.DB.Model(&Contact{}).Where("owen_id = ? AND target_id = ? AND type = 2", userId, target).First(&contact).Error; err != nil {
+		if err := tx.Model(&Contact{}).Where("owen_id = ? AND target_id = ? AND type = 2", userId, target).First(&contact).Error; err != nil {
 			return 0, "查询会话失败", err
 		}
 
 		var conversation Conversation
 
-		result := utils.DB.Model(&Conversation{}).Where("type = 1 AND community_id = ?", community.CommunityId).First(&conversation)
+		result := tx.Model(&Conversation{}).Where("type = 1 AND community_id = ?", community.CommunityId).First(&conversation)
 
 		if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return 0, "查询会话失败", result.Error
 		}
 
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			tx := utils.DB.Begin()
-
-			defer func() {
-				if err := recover(); err != nil {
-					tx.Rollback()
-				}
-			}()
-
 			conversation = Conversation{
 				ConversationId: utils.NextId(),
 				Type:           1,
@@ -213,7 +212,6 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 			}
 
 			if err := tx.Model(&Conversation{}).Create(conversation).Error; err != nil {
-				tx.Rollback()
 				return 0, "获取会话信息失败", err
 			}
 
@@ -230,17 +228,15 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 			conversationMember.VisibleAt = &nowTime
 
 			if err := tx.Model(&ConversationMember{}).Create(conversationMember).Error; err != nil {
-				tx.Rollback()
 				return 0, "获取会话信息失败", err
 			}
-			tx.Commit()
 			return conversation.ConversationId, "", nil
 
 		} else {
 
 			var conversationMember ConversationMember
 
-			result := utils.DB.Model(&ConversationMember{}).Where("conversation_id = ? AND user_id = ?", conversation.ConversationId, userId).First(&conversationMember)
+			result := tx.Model(&ConversationMember{}).Where("conversation_id = ? AND user_id = ?", conversation.ConversationId, userId).First(&conversationMember)
 
 			if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 				return 0, "获取会话信息失败", result.Error
@@ -256,12 +252,15 @@ func CreateConversation(userId int64, target int64, cType int) (int64, string, e
 				if community.OwnerId == uint(userId) {
 					conversationMember.Role = 3
 				}
-				if err := utils.DB.Model(&ConversationMember{}).Create(conversationMember).Error; err != nil {
+				if err := tx.Model(&ConversationMember{}).Create(conversationMember).Error; err != nil {
 					return 0, "获取会话信息失败", err
 				}
 			} else {
 				nowTime := time.Now()
-				if err := utils.DB.Model(&ConversationMember{}).Where("conversation_id = ? AND user_id = ?", conversation.ConversationId, userId).Update("visible_at", nowTime).Error; err != nil {
+				if err := tx.Model(&ConversationMember{}).Where("conversation_id = ? AND user_id = ?", conversation.ConversationId, userId).Updates(map[string]interface{}{
+					"visible_at": nowTime,
+					"left_at":    nil,
+				}).Error; err != nil {
 					return 0, "获取会话信息失败", err
 				}
 			}
@@ -297,6 +296,7 @@ type ConversationListResult struct {
 	UnreadCount     int             `json:"unread_count"`
 	LastMessageInfo LastMessageInfo `json:"last_message_info"`
 	TargetInfo      TargetInfo      `json:"target_info"`
+	Type            int             `json:"type"`
 }
 
 // 获取会话列表
@@ -393,6 +393,7 @@ func LoadConversationList(userId int64) ([]ConversationListResult, error) {
 			IsPinned:       row.IsPinned,
 			IsMuted:        row.IsMuted,
 			UnreadCount:    row.UnreadCount,
+			Type:           row.Type,
 		}
 
 		if row.Type == 1 && row.CommunityId != nil {
@@ -438,187 +439,38 @@ func LoadConversationList(userId int64) ([]ConversationListResult, error) {
 
 		result = append(result, item)
 	}
-
-	// var conversationMemberList []ConversationMember
-
-	// if err := utils.DB.
-	// 	Model(&ConversationMember{}).
-	// 	Where("user_id = ? AND visible_at IS NOT NULL AND left_at IS NULL", userId).
-	// 	Find(&conversationMemberList).Error; err != nil {
-	// 	return nil, err
-	// }
-
-	// var conversationIdList []int64
-	// conversationMemberSet := make(map[int64]ConversationMember, len(conversationMemberList))
-
-	// for _, conversationMember := range conversationMemberList {
-	// 	conversationIdList = append(conversationIdList, conversationMember.ConversationId)
-	// 	conversationMemberSet[conversationMember.ConversationId] = conversationMember
-	// }
-
-	// var conversationList []Conversation
-	// if err := utils.DB.
-	// 	Model(&Conversation{}).
-	// 	Where("conversation_id IN ? AND status != 0", conversationIdList).
-	// 	Find(&conversationList).Error; err != nil {
-	// 	return nil, err
-	// }
-
-	// // 对会话列表进行排序，优先排序指定的会话，然后是最新消息最新的会话在前
-	// sort.SliceStable(conversationList, func(i, j int) bool {
-	// 	left := conversationList[i]
-	// 	right := conversationList[j]
-
-	// 	leftMember := conversationMemberSet[left.ConversationId]
-	// 	rightMember := conversationMemberSet[right.ConversationId]
-
-	// 	if leftMember.IsPinned != rightMember.IsPinned {
-	// 		return leftMember.IsPinned
-	// 	}
-
-	// 	var leftTime, rightTime time.Time
-	// 	if left.LastMessageAt != nil {
-	// 		leftTime = *left.LastMessageAt
-	// 	}
-	// 	if right.LastMessageAt != nil {
-	// 		rightTime = *right.LastMessageAt
-	// 	}
-
-	// 	if !leftTime.Equal(rightTime) {
-	// 		return leftTime.After(rightTime)
-	// 	}
-
-	// 	return left.ConversationId > right.ConversationId
-	// })
-
-	// var messageIdList []int64
-	// var userIdList []int64
-	// var communityIdList []int64
-	// conversationSet := make(map[int64]Conversation, len(conversationList))
-
-	// for _, conversation := range conversationList {
-	// 	messageIdList = append(messageIdList, conversation.LastMessageId)
-
-	// 	if conversation.Type == 1 {
-	// 		communityIdList = append(communityIdList, *conversation.CommunityId)
-	// 	} else if conversation.Type == 2 {
-	// 		if conversation.PrivateHighUserId != nil && *conversation.PrivateHighUserId == userId {
-	// 			userIdList = append(userIdList, *conversation.PrivateLowUserId)
-	// 		} else {
-	// 			userIdList = append(userIdList, *conversation.PrivateHighUserId)
-	// 		}
-	// 	}
-
-	// 	conversationSet[conversation.ConversationId] = conversation
-	// }
-	// var messageList []Message
-	// if err := utils.DB.
-	// 	Model(&Message{}).
-	// 	Where("message_id IN ?", messageIdList).Find(&messageList).Error; err != nil {
-	// 	return nil, err
-	// }
-
-	// messageInfoSet := make(map[int64]Message, len(messageList))
-
-	// for _, message := range messageList {
-	// 	messageInfoSet[message.MessageId] = message
-	// }
-
-	// var communityInfoList []Community
-	// if err := utils.DB.
-	// 	Model(&Community{}).
-	// 	Where("community_id IN ?", communityIdList).
-	// 	Find(&communityInfoList).Error; err != nil {
-	// 	return nil, err
-	// }
-
-	// communityInfoSet := make(map[int64]Community, len(communityInfoList))
-
-	// for _, communityInfo := range communityInfoList {
-	// 	communityInfoSet[communityInfo.CommunityId] = communityInfo
-	// }
-
-	// var userInfoList []UserBasic
-	// if err := utils.DB.
-	// 	Model(&UserBasic{}).
-	// 	Where("user_id IN ?", userIdList).
-	// 	Find(&userInfoList).
-	// 	Error; err != nil {
-	// 	return nil, err
-	// }
-
-	// userInfoSet := make(map[int64]UserBasic, len(userInfoList))
-	// for _, userInfo := range userInfoList {
-	// 	userInfoSet[userInfo.UserId] = userInfo
-	// }
-
-	// result := make([]ConversationListResult, 0, len(conversationList))
-
-	// for _, conversation := range conversationList {
-
-	// 	var targetInfo TargetInfo
-	// 	if conversation.Type == 1 {
-	// 		targetInfo = TargetInfo{
-	// 			TargetId: *conversation.CommunityId,
-	// 			Name:     communityInfoSet[*conversation.CommunityId].Name,
-	// 			Avatar:   communityInfoSet[*conversation.CommunityId].Img,
-	// 		}
-	// 	} else if conversation.Type == 2 {
-	// 		var targetId int64
-	// 		if conversation.PrivateHighUserId != nil && *conversation.PrivateHighUserId == userId {
-	// 			targetId = *conversation.PrivateLowUserId
-	// 		} else {
-	// 			targetId = *conversation.PrivateHighUserId
-	// 		}
-	// 		targetInfo = TargetInfo{
-	// 			TargetId: targetId,
-	// 			Name:     userInfoSet[targetId].Name,
-	// 			Avatar:   userInfoSet[targetId].Avatar,
-	// 		}
-	// 	}
-
-	// 	messageInfo := messageInfoSet[conversation.LastMessageId]
-	// 	lastMessageInfo := LastMessageInfo{
-	// 		MessageId: messageInfo.MessageId,
-	// 		Content:   messageInfo.Content,
-	// 		Media:     messageInfo.Media,
-	// 		Pic:       messageInfo.Pic,
-	// 		Url:       messageInfo.Url,
-	// 		Desc:      messageInfo.Desc,
-	// 		CreateAt:  messageInfo.CreatedAt,
-	// 		IsSelf:    messageInfo.FromId == userId,
-	// 	}
-
-	// 	result = append(result, ConversationListResult{
-	// 		ConversationId:  conversation.ConversationId,
-	// 		IsPinned:        conversationMemberSet[conversation.ConversationId].IsPinned,
-	// 		IsMuted:         conversationMemberSet[conversation.ConversationId].IsMuted,
-	// 		TargetInfo:      targetInfo,
-	// 		LastMessageInfo: lastMessageInfo,
-	// 	})
-	// }
-
 	return result, nil
 }
 
 // 删除会话
 func DeleteConversation(userId int64, conversationId int64) error {
-	var conversationMember ConversationMember
-	if err := utils.DB.
-		Where("user_id = ? AND conversation_id = ?", userId, conversationId).
-		First(&conversationMember).Error; err != nil {
-		return err
-	}
+	return utils.DB.Transaction(func(tx *gorm.DB) error {
+		var conversation Conversation
+		// 查询当前会话，锁住这条conversation记录, 防止删除和新增同时发生
+		if err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Select("conversation_id", "last_message_id").
+			Where("conversation_id = ?", conversationId).
+			Take(&conversation).Error; err != nil {
+			return err
+		}
 
-	if err := utils.DB.Model(&ConversationMember{}).
-		Where("user_id = ? AND conversation_id = ?", userId, conversationId).
-		Updates(map[string]interface{}{
-			"visible_at":              nil,
-			"unread_count":            0,
-			"clear_before_message_id": conversationMember.LastReadMessageId,
-		}).Error; err != nil {
-		return err
-	}
+		result := tx.Model(&ConversationMember{}).
+			Where("user_id = ? AND conversation_id = ? AND left_at IS NULL", userId, conversationId).
+			Updates(map[string]interface{}{
+				"visible_at":              nil,
+				"unread_count":            0,
+				"clear_before_message_id": conversation.LastMessageId,
+			})
 
-	return nil
+		if result.Error != nil {
+			return result.Error
+		}
+
+		if result.RowsAffected != 1 {
+			return gorm.ErrRecordNotFound
+		}
+
+		return nil
+	})
 }
