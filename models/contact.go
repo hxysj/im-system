@@ -1,9 +1,6 @@
 package models
 
 import (
-	"fmt"
-	"strconv"
-
 	"github.com/hxysj/im-system/utils"
 	"gorm.io/gorm"
 )
@@ -29,18 +26,13 @@ type SearchFriendResult struct {
 	Email  string `json:"email"`
 }
 
-func SearchFriend(userId string) []SearchFriendResult {
+func SearchFriend(userId int64) []SearchFriendResult {
 
 	contacts := make([]Contact, 0)
 	userIds := make([]uint64, 0)
 
-	id, err := strconv.ParseUint(userId, 10, 64)
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
 	// 获取关系表中用户相关连的信息
-	utils.DB.Where("owen_id = ? and type = ?", id, 1).Find(&contacts)
+	utils.DB.Where("owen_id = ? and type = ?", userId, 1).Find(&contacts)
 
 	for _, v := range contacts {
 		userIds = append(userIds, uint64(v.TargetId))
@@ -54,7 +46,7 @@ func SearchFriend(userId string) []SearchFriendResult {
 }
 
 func AddFriend(userId uint, targetId uint) int {
-	user := FindUserById(int(userId))
+	user := FindUserById(int64(userId))
 
 	if targetId != 0 && user.UserId != 0 {
 		contact := Contact{}

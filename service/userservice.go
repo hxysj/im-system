@@ -110,16 +110,16 @@ func CreateUser(ctx *gin.Context) {
 // @Router /user/deleteUser [get]
 func DeleteUser(ctx *gin.Context) {
 	userId := ctx.GetInt64("current_user_id")
+	if err := models.DeleteUser(userId); err != nil {
+		utils.RespFail(ctx.Writer, "注销账号失败")
+		return
+	}
 
 	if err := utils.RevokeUserTokens(ctx, userId); err != nil {
 		utils.RespFail(ctx.Writer, "注销登录状态失败")
 		return
 	}
 
-	if err := models.DeleteUser(userId); err != nil {
-		utils.RespFail(ctx.Writer, "注销账号失败")
-		return
-	}
 }
 
 // UpdateUser

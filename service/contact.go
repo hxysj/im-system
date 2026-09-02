@@ -15,7 +15,8 @@ import (
 // @Success 200 {string} json{"code","message"}
 // @Router /contact/getFriendsById [post]
 func SearchFriends(ctx *gin.Context) {
-	users := models.SearchFriend(ctx.PostForm("user_id"))
+	user_id := ctx.GetInt64("current_user_id")
+	users := models.SearchFriend(user_id)
 
 	// ctx.JSON(200,gin.H{
 	// 	"code":0,

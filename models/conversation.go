@@ -133,7 +133,7 @@ func CreateConversationTx(tx *gorm.DB, userId int64, target int64, cType int) (i
 				}
 				now := time.Now()
 				conversationMember.VisibleAt = &now
-				if err := tx.Model(&ConversationMember{}).Create(conversationMember).Error; err != nil {
+				if err := tx.Model(&ConversationMember{}).Create(&conversationMember).Error; err != nil {
 					return 0, "查询会话失败", err
 				}
 				return conversation.ConversationId, "", nil
@@ -157,7 +157,7 @@ func CreateConversationTx(tx *gorm.DB, userId int64, target int64, cType int) (i
 				PrivateLowUserId:  &lowUserId,
 				PrivateHighUserId: &HighUserId,
 			}
-			if err := tx.Model(&Conversation{}).Create(conversation).Error; err != nil {
+			if err := tx.Model(&Conversation{}).Create(&conversation).Error; err != nil {
 				return 0, "新建会话失败", err
 			}
 			now := time.Now()
@@ -168,7 +168,7 @@ func CreateConversationTx(tx *gorm.DB, userId int64, target int64, cType int) (i
 				LeftAt:         nil,
 			}
 
-			if err := tx.Model(&ConversationMember{}).Create(conversationMember).Error; err != nil {
+			if err := tx.Model(&ConversationMember{}).Create(&conversationMember).Error; err != nil {
 				return 0, "新建会话失败", err
 			}
 
@@ -177,7 +177,7 @@ func CreateConversationTx(tx *gorm.DB, userId int64, target int64, cType int) (i
 				UserId:         target,
 			}
 
-			if err := tx.Model(&ConversationMember{}).Create(targetConversationMember).Error; err != nil {
+			if err := tx.Model(&ConversationMember{}).Create(&targetConversationMember).Error; err != nil {
 				return 0, "新建会话失败", err
 			}
 
@@ -227,7 +227,7 @@ func CreateConversationTx(tx *gorm.DB, userId int64, target int64, cType int) (i
 			nowTime := time.Now()
 			conversationMember.VisibleAt = &nowTime
 
-			if err := tx.Model(&ConversationMember{}).Create(conversationMember).Error; err != nil {
+			if err := tx.Model(&ConversationMember{}).Create(&conversationMember).Error; err != nil {
 				return 0, "获取会话信息失败", err
 			}
 			return conversation.ConversationId, "", nil
@@ -252,7 +252,7 @@ func CreateConversationTx(tx *gorm.DB, userId int64, target int64, cType int) (i
 				if community.OwnerId == uint(userId) {
 					conversationMember.Role = 3
 				}
-				if err := tx.Model(&ConversationMember{}).Create(conversationMember).Error; err != nil {
+				if err := tx.Model(&ConversationMember{}).Create(&conversationMember).Error; err != nil {
 					return 0, "获取会话信息失败", err
 				}
 			} else {
@@ -386,6 +386,24 @@ func LoadConversationList(userId int64) ([]ConversationListResult, error) {
 	}
 
 	result := make([]ConversationListResult, 0, len(rows))
+	stringValue := func(value *string) string {
+		if value == nil {
+			return ""
+		}
+		return *value
+	}
+	intValue := func(value *int) int {
+		if value == nil {
+			return 0
+		}
+		return *value
+	}
+	timeValue := func(value *time.Time) time.Time {
+		if value == nil {
+			return time.Time{}
+		}
+		return *value
+	}
 
 	for _, row := range rows {
 		item := ConversationListResult{
@@ -399,8 +417,8 @@ func LoadConversationList(userId int64) ([]ConversationListResult, error) {
 		if row.Type == 1 && row.CommunityId != nil {
 			item.TargetInfo = TargetInfo{
 				TargetId: *row.CommunityId,
-				Name:     *row.CommunityName,
-				Avatar:   *row.CommunityAvatar,
+				Name:     stringValue(row.CommunityName),
+				Avatar:   stringValue(row.CommunityAvatar),
 			}
 		}
 
@@ -418,8 +436,8 @@ func LoadConversationList(userId int64) ([]ConversationListResult, error) {
 			if targetId != nil {
 				item.TargetInfo = TargetInfo{
 					TargetId: *targetId,
-					Name:     *targetName,
-					Avatar:   *targetAvatar,
+					Name:     stringValue(targetName),
+					Avatar:   stringValue(targetAvatar),
 				}
 			}
 		}
@@ -427,12 +445,12 @@ func LoadConversationList(userId int64) ([]ConversationListResult, error) {
 		if row.LastMessageId != nil {
 			item.LastMessageInfo = LastMessageInfo{
 				MessageId: *row.LastMessageId,
-				Content:   *row.LastContent,
-				Media:     *row.LastMedia,
-				Pic:       *row.LastPic,
-				Url:       *row.LastUrl,
-				Desc:      *row.LastDesc,
-				CreateAt:  *row.LastCreatedAt,
+				Content:   stringValue(row.LastContent),
+				Media:     intValue(row.LastMedia),
+				Pic:       stringValue(row.LastPic),
+				Url:       stringValue(row.LastUrl),
+				Desc:      stringValue(row.LastDesc),
+				CreateAt:  timeValue(row.LastCreatedAt),
 				IsSelf:    row.LastFromId != nil && *row.LastFromId == userId,
 			}
 		}

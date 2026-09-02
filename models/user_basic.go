@@ -78,7 +78,7 @@ func DeleteUser(userId int64) error {
 			return err
 		}
 		// 设置用户离开了会话
-		if err := tx.Model(&ConversationMember{}).Where("user_id = ? AND left IS NULL", userId).
+		if err := tx.Model(&ConversationMember{}).Where("user_id = ? AND left_at IS NULL", userId).
 			Updates(map[string]interface{}{
 				"left_at":      now,
 				"visible_at":   nil,
