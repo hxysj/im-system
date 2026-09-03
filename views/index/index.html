@@ -1684,6 +1684,24 @@
               return this.relationRequests.filter((item) =>
                 this.requestCanAct(item)
               ).length
+            },
+            canSendCurrentConversation() {
+              const conversation = this.selectedConversation
+              if (!conversation) return false
+              if (conversation.type === 2) return conversation.status === 1
+              if (conversation.type !== 1) return false
+              if (conversation.status === 1) return true
+              return (
+                conversation.status === 3 &&
+                (conversation.role === 2 || conversation.role === 3)
+              )
+            },
+            conversationSendRestriction() {
+              const conversation = this.selectedConversation
+              if (!conversation || this.canSendCurrentConversation) return ""
+              if (conversation.type === 1 && conversation.status === 3)
+                return "群聊已禁言，仅管理员和群主可发言"
+              return "当前会话仅可查看历史消息"
             }
           },
           mounted() {
@@ -1837,6 +1855,8 @@
               return {
                 id: this.conversationId(item),
                 type,
+                status: Number(item?.status ?? item?.Status ?? 1),
+                role: Number(item?.role ?? item?.Role ?? 1),
                 target,
                 isPinned: this.toBoolean(item?.is_pinned ?? item?.IsPinned),
                 isMuted: this.toBoolean(item?.is_muted ?? item?.IsMuted),
@@ -1943,6 +1963,7 @@
               }
             },
             toggleEmojiPanel() {
+              if (!this.ensureCanSendCurrentConversation()) return
               this.emojiPanelOpen = !this.emojiPanelOpen
               if (this.emojiPanelOpen && !this.emojis.length) this.loadEmojis()
             },
@@ -1950,6 +1971,7 @@
               const file = event.target.files && event.target.files[0]
               event.target.value = ""
               if (!file || !this.selectedUser) return
+              if (!this.ensureCanSendCurrentConversation()) return
               if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
                 this.showToast("实时通道尚未连接，请稍后重试", "error")
                 return
@@ -2111,6 +2133,8 @@
                   if (current) {
                     this.selectedConversation = current
                     this.selectedUser = current.target
+                    if (!this.canSendCurrentConversation)
+                      this.emojiPanelOpen = false
                   }
                 }
               } catch (error) {
@@ -2515,7 +2539,12 @@
                 ? { ...existing, type, target }
                 : conversation
               this.upsertConversation(nextConversation)
-              return nextConversation
+              await this.refreshConversations()
+              return (
+                this.conversations.find(
+                  (item) => item.id === nextConversation.id
+                ) || nextConversation
+              )
             },
             upsertConversation(conversation) {
               const index = this.conversations.findIndex(
@@ -2853,9 +2882,19 @@
               if (!emoji || !emoji.file || !this.selectedConversation) return
               this.sendChatMessage("", 2, emoji.name, emoji.file)
             },
+            ensureCanSendCurrentConversation() {
+              if (this.canSendCurrentConversation) return true
+              this.emojiPanelOpen = false
+              this.showToast(
+                this.conversationSendRestriction || "当前会话无法发送消息",
+                "error"
+              )
+              return false
+            },
             sendChatMessage(content, media, name = "", url = "") {
               const conversationId = this.selectedConversation?.id
               if (!conversationId || !this.session.user) return
+              if (!this.ensureCanSendCurrentConversation()) return
               const packet = {
                 conversation_id: Number(conversationId),
                 media,

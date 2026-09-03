@@ -293,7 +293,10 @@ func dispatch(userId int64, data []byte) {
 	var conversation Conversation
 	// 锁住会话
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-		Where("conversation_id = ? AND status = 1", msg.ConversationId).
+		Where("conversation_id = ? AND (status  = ? OR (type = 1 AND status = ?))",
+			msg.ConversationId,
+			utils.ConversationStatusNormal,
+			utils.ConversationStatusMuted).
 		Take(&conversation).Error; err != nil {
 		tx.Rollback()
 		return
@@ -302,7 +305,7 @@ func dispatch(userId int64, data []byte) {
 	// 要从conversation表中获取所有的成员
 	var memberList []ConversationMember
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-		Where("conversation_id = ?  AND left_at IS NULL", msg.ConversationId).
+		Where("conversation_id = ? AND left_at IS NULL", msg.ConversationId).
 		Order("user_id ASC").
 		Find(&memberList).Error; err != nil {
 		fmt.Println("获取会话信息表失败:", err)
@@ -315,6 +318,12 @@ func dispatch(userId int64, data []byte) {
 
 	for _, member := range memberList {
 		if member.UserId == userId {
+			if conversation.Status == utils.ConversationStatusDissolved &&
+				conversation.Type == 1 &&
+				member.Role != 2 && member.Role != 3 {
+				senderExists = false
+				continue
+			}
 			senderExists = true
 			continue
 		}
@@ -333,7 +342,7 @@ func dispatch(userId int64, data []byte) {
 	}
 
 	result := tx.Model(&Conversation{}).
-		Where("conversation_id = ? AND status = ?", msg.ConversationId, 1).
+		Where("conversation_id = ? AND (status = ? OR (type = 1 AND status = ?)) ", msg.ConversationId, utils.ConversationStatusNormal, utils.ConversationStatusMuted).
 		Updates(map[string]interface{}{
 			"last_message_id": msg.MessageId,
 			"last_message_at": msg.CreatedAt,
@@ -410,134 +419,6 @@ type MessageListResult struct {
 	IsSelf    bool            `json:"is_self"`
 }
 
-// 获取用户消息
-// func GetMessageList(userId int64, targetId int64, msgType int, limit int, page int) ([]MessageListResult, int64, error) {
-// 	if msgType == 1 {
-// 		var community Community
-// 		if err := utils.DB.Model(&Community{}).Where("community_id = ?", targetId).First(&community).Error; err != nil {
-// 			return nil, 0, err
-// 		}
-// 		var contact Contact
-// 		if err := utils.DB.Model(&Contact{}).Where("owen_id = ? AND target_id = ? AND type = 2", userId, targetId).First(&contact).Error; err != nil {
-// 			return nil, 0, err
-// 		}
-// 	} else if msgType == 2 {
-// 		var user UserBasic
-// 		if err := utils.DB.Model(&UserBasic{}).Where("user_id = ?", targetId).First(&user).Error; err != nil {
-// 			return nil, 0, err
-// 		}
-// 	}
-// 	var total int64
-// 	var messageList []Message
-// 	// 私聊需要获取自己发送的还需要获取对方发送的
-// 	query := utils.DB.Model(&Message{}).
-// 		Where("(from_id = ? AND target_id = ? OR from_id = ? AND target_id = ?) AND type = ?",
-// 			userId,
-// 			targetId,
-// 			targetId,
-// 			userId,
-// 			msgType)
-// 	// 群聊则是获取所有人发送的
-// 	if msgType == 1 {
-// 		query = utils.DB.Model(&Message{}).
-// 			Where("target_id = ? AND type = ?", targetId, msgType)
-// 	}
-
-// 	if err := query.Count(&total).Error; err != nil {
-// 		return nil, 0, err
-// 	}
-// 	if err := query.Order("created_at DESC").
-// 		Limit(limit).
-// 		Offset((page - 1) * limit).
-// 		Find(&messageList).Error; err != nil {
-// 		return nil, 0, err
-// 	}
-
-// 	userIdSet := make(map[int64]struct{}, 0)
-
-// 	for _, message := range messageList {
-// 		if msgType == 1 {
-// 			if _, ok := userIdSet[message.FromId]; !ok {
-// 				userIdSet[message.FromId] = struct{}{}
-// 			}
-// 		} else if msgType == 2 {
-// 			if _, ok := userIdSet[message.FromId]; !ok {
-// 				userIdSet[message.FromId] = struct{}{}
-// 			}
-// 			if _, ok := userIdSet[message.TargetId]; !ok {
-// 				userIdSet[message.TargetId] = struct{}{}
-// 			}
-// 		}
-// 	}
-
-// 	userIdList := make([]int64, 0, len(userIdSet))
-
-// 	for key, _ := range userIdSet {
-// 		userIdList = append(userIdList, key)
-// 	}
-
-// 	var userInfoList []UserBasic
-
-// 	if err := utils.DB.Model(&UserBasic{}).Where("user_id IN ?", userIdList).Find(&userInfoList).Error; err != nil {
-// 		return nil, 0, err
-// 	}
-
-// 	userInfoMap := make(map[int64]UserBasic, len(userInfoList))
-
-// 	for _, user := range userInfoList {
-// 		userInfoMap[user.UserId] = user
-// 	}
-
-// 	result := make([]MessageListResult, 0, len(messageList))
-
-// 	for _, message := range messageList {
-// 		res := MessageListResult{
-// 			MessageId: message.MessageId,
-// 			Type:      message.Type,
-// 			Media:     message.Media,
-// 			Content:   message.Content,
-// 			Pic:       message.Pic,
-// 			Url:       message.Url,
-// 			Desc:      message.Desc,
-// 			CreatedAt: message.CreatedAt,
-// 			IsSelf:    false,
-// 		}
-// 		if message.Type == 1 {
-// 			// 群聊消息
-// 			fromUser, _ := userInfoMap[message.FromId]
-// 			res.FromInfo = MessageUserInfo{
-// 				UserId: fromUser.UserId,
-// 				Name:   fromUser.Name,
-// 				Avatar: fromUser.Avatar,
-// 			}
-// 			if fromUser.UserId == userId {
-// 				res.IsSelf = true
-// 			}
-// 		} else if message.Type == 2 {
-// 			// 私聊消息
-// 			fromUser, _ := userInfoMap[message.FromId]
-// 			targetUser, _ := userInfoMap[message.TargetId]
-// 			res.FromInfo = MessageUserInfo{
-// 				UserId: fromUser.UserId,
-// 				Name:   fromUser.Name,
-// 				Avatar: fromUser.Avatar,
-// 			}
-// 			res.TargetInfo = MessageUserInfo{
-// 				UserId: targetUser.UserId,
-// 				Name:   targetUser.Name,
-// 				Avatar: targetUser.Avatar,
-// 			}
-// 			if fromUser.UserId == userId {
-// 				res.IsSelf = true
-// 			}
-// 		}
-
-// 		result = append(result, res)
-// 	}
-
-// 	return result, total, nil
-// }
-
 // 根据会话id获取消息列表
 func GetMessageList(userId int64, conversation_id int64, limit int, page int) ([]MessageListResult, int64, error) {
 	var conversationMember ConversationMember
@@ -548,7 +429,13 @@ func GetMessageList(userId int64, conversation_id int64, limit int, page int) ([
 		Joins(`
 			INNER JOIN conversation AS c ON c.conversation_id = cm.conversation_id
 		`).
-		Where(`cm.user_id = ? AND cm.conversation_id = ? AND cm.left_at IS NULL AND c.status = 1`, userId, conversation_id).
+		Where(`
+		cm.user_id = ? AND cm.conversation_id = ? 
+		AND cm.left_at IS NULL AND c.status IN ?`,
+			userId, conversation_id, []int{
+				utils.ConversationStatusNormal,
+				utils.ConversationStatusMuted,
+				utils.ConversationStatusDissolved}).
 		Take(&conversationMember).Error; err != nil {
 		return nil, 0, err
 	}
@@ -629,7 +516,10 @@ func ReadMessage(userId int64, conversation_id int64) error {
 			Table("conversation AS C").
 			Select("c.last_message_id").
 			Joins("INNER JOIN conversation_member AS cm ON cm.conversation_id = c.conversation_id").
-			Where("c.conversation_id = ? AND cm.user_id = ? AND cm.left_at IS NULL AND c.status = 1", conversation_id, userId).
+			Where("c.conversation_id = ? AND cm.user_id = ? AND cm.left_at IS NULL AND c.status IN ?", conversation_id, userId, []int{
+				utils.ConversationStatusNormal,
+				utils.ConversationStatusMuted,
+				utils.ConversationStatusDissolved}).
 			Take(&row).Error; err != nil {
 			return err
 		}

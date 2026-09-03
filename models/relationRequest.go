@@ -224,7 +224,7 @@ func CreateRelationRequest(user_id int64, target_id int64, desc string, req_type
 
 	var relationRequestInfo RelationRequest
 
-	utils.DB.Model(&RelationRequest{}).Where("requester_id = ? AND target_id = ?  AND type = ? AND status != ?", user_id, target_id, req_type, 3).Find(&relationRequestInfo)
+	utils.DB.Model(&RelationRequest{}).Where("requester_id = ? AND target_id = ?  AND type = ? AND status != 3 AND status != 4", user_id, target_id, req_type).Find(&relationRequestInfo)
 
 	if relationRequestInfo.RequestId != 0 {
 		return -1, "记录已存在"
@@ -302,7 +302,7 @@ func ToggleRelationRequestStatus(r_id int64, user_id int64, status int) (int, st
 		_, _, err := CreateConversation(relationRequestInfo.RequesterId, relationRequestInfo.TargetId, 2)
 		if err != nil {
 			fmt.Println(err)
-			return 0, "创建会话失败"
+			return -1, "创建会话失败"
 		}
 
 	} else {

@@ -86,6 +86,18 @@ func DeleteUser(userId int64) error {
 			}).Error; err != nil {
 			return err
 		}
+
+		// 将对应的会话 status设置成 2 表示无法发送消息
+		conversationIds := tx.Model(&ConversationMember{}).Select("conversation_id").Where("user_id = ?", userId)
+
+		result := tx.Model(&Conversation{}).
+			Where("type = ? AND status = ? AND conversation_id IN ?", utils.ConversationStatusNormal, 1, conversationIds).
+			Update("status", utils.ConversationStatusDissolved)
+
+		if result.Error != nil {
+			return result.Error
+		}
+
 		// 删除对应的关系表
 		if err := tx.Where("owen_id = ? OR (type = 1 AND target_id = ?)", userId, userId).
 			Delete(&Contact{}).Error; err != nil {

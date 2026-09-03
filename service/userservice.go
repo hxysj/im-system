@@ -105,7 +105,6 @@ func CreateUser(ctx *gin.Context) {
 // DeleteUser
 // Summary 删除用户
 // @Tags 用户模块
-// @param id query string false "用户id"
 // @Success 200 {string} json{"code","message"}
 // @Router /user/deleteUser [get]
 func DeleteUser(ctx *gin.Context) {
@@ -119,6 +118,8 @@ func DeleteUser(ctx *gin.Context) {
 		utils.RespFail(ctx.Writer, "注销登录状态失败")
 		return
 	}
+
+	utils.RespOk(ctx.Writer, nil, "注销成功！")
 
 }
 

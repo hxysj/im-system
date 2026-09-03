@@ -73,6 +73,26 @@ func LoadConversationList(ctx *gin.Context) {
 	}
 }
 
+// 获取会话详情
+func GetConversationDetail(ctx *gin.Context) {
+	user_id := ctx.GetInt64("current_user_id")
+	conversation_id, err := strconv.Atoi(ctx.Query("conversation_id"))
+
+	if err != nil {
+		utils.RespFail(ctx.Writer, "参数有误！")
+		return
+	}
+
+	result, err := models.GetConversationDetail(user_id, int64(conversation_id))
+
+	if err != nil {
+		fmt.Println(err)
+		utils.RespFail(ctx.Writer, "获取会话详情失败!")
+	} else {
+		utils.RespOk(ctx.Writer, result, "")
+	}
+}
+
 // 删除会话 - 只是删除自己能看到的历史消息
 func DeleteConversation(ctx *gin.Context) {
 	user_id := ctx.GetInt64("current_user_id")

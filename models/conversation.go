@@ -23,7 +23,7 @@ type Conversation struct {
 	CommunityId       *int64     `gorm:"uniqueIndex:uk_conversation_group,priority:2" json:"community_id,omitempty"`                                                 //群会话所关联的群id
 	LastMessageId     int64      `gorm:"not null;default:0" json:"last_message_id"`                                                                                  //会话的最后一条消息id
 	LastMessageAt     *time.Time `gorm:"index:idx_conversation_last_message" json:"last_message_at"`                                                                 //会话最后一条消息的时间
-	Status            int        `gorm:"not null;default:1" json:"status"`                                                                                           //会话状态，例如正常、解散、禁言
+	Status            int        `gorm:"not null;default:1" json:"status"`                                                                                           //会话状态，例如 1 正常、2 禁言、3解散
 	CreatedAt         time.Time  `gorm:"not null;autoCreateTime" json:"created_at"`                                                                                  //会话的创建时间
 	UpdatedAt         time.Time  `gorm:"not null;autoUpdateTime" json:"updated_at"`                                                                                  //会话的更新时间
 }
@@ -35,13 +35,13 @@ func (Conversation) TableName() string {
 type ConversationMember struct {
 	ConversationId       int64      `gorm:"primaryKey" json:"conversation_id"`                 //用户所属的会话
 	UserId               int64      `gorm:"primaryKey" json:"user_id"`                         //会话的成员id
-	Role                 int        `gorm:"not null;default:0" json:"role"`                    //成员的身份 1 普通用户  2管理员  3 创建者
+	Role                 int        `gorm:"not null;default:1" json:"role"`                    //成员的身份 1 普通用户  2管理员  3 创建者
 	LastReadMessageId    int64      `gorm:"not null;default:0" json:"last_read_message_id"`    //用户最后读到的消息id
 	UnreadCount          int        `gorm:"not null;default:0" json:"unread_count"`            //当前未读消息数量的缓存
 	IsPinned             bool       `gorm:"not null;default:false" json:"is_pinned"`           //是否置顶会话
 	IsMuted              bool       `gorm:"not null;default:false" json:"is_muted"`            //是否开启消息免打扰
 	JoinedAt             time.Time  `gorm:"not null;autoCreateTime" json:"joined_at"`          //用户加入会话的时间
-	LeftAt               *time.Time `json:"left_at,omitempty"`                                 //用户退出会话的时间
+	LeftAt               *time.Time `json:"left_at,omitempty"`                                 //用户退出会话的时间 - 群聊则是退出群聊了，单聊则是删除对方好友了
 	UpdatedAt            time.Time  `gorm:"not null;autoUpdateTime" json:"updated_at"`         //状态最后的修改时间
 	VisibleAt            *time.Time `json:"visible_at,omitempty"`                              //用户是否可见会话列表
 	ClearBeforeMessageId int64      `gorm:"not null;default:0" json:"clear_before_message_id"` //用户只允许看到此消息之后的消息
@@ -211,13 +211,14 @@ func CreateConversationTx(tx *gorm.DB, userId int64, target int64, cType int) (i
 				CommunityId:    &community.CommunityId,
 			}
 
-			if err := tx.Model(&Conversation{}).Create(conversation).Error; err != nil {
+			if err := tx.Model(&Conversation{}).Create(&conversation).Error; err != nil {
 				return 0, "获取会话信息失败", err
 			}
 
 			conversationMember := ConversationMember{
-				ConversationId: conversation.ConversationId,
-				UserId:         userId,
+				ConversationId:       conversation.ConversationId,
+				UserId:               userId,
+				ClearBeforeMessageId: conversation.LastMessageId,
 			}
 
 			if community.OwnerId == uint(userId) {
@@ -244,8 +245,9 @@ func CreateConversationTx(tx *gorm.DB, userId int64, target int64, cType int) (i
 
 			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 				conversationMember = ConversationMember{
-					ConversationId: conversation.ConversationId,
-					UserId:         userId,
+					ConversationId:       conversation.ConversationId,
+					UserId:               userId,
+					ClearBeforeMessageId: conversation.LastMessageId,
 				}
 				nowTime := time.Now()
 				conversationMember.VisibleAt = &nowTime
@@ -287,12 +289,15 @@ type TargetInfo struct {
 	TargetId int64  `json:"target_id"`
 	Name     string `json:"name"`
 	Avatar   string `json:"avatar"`
+	Desc     string `json:"desc"`
 }
 
 type ConversationListResult struct {
 	ConversationId  int64           `json:"conversation_id"`
 	IsPinned        bool            `json:"is_pinned"`
 	IsMuted         bool            `json:"is_muted"`
+	Role            int             `json:"role"`
+	Status          int             `json:"status"`
 	UnreadCount     int             `json:"unread_count"`
 	LastMessageInfo LastMessageInfo `json:"last_message_info"`
 	TargetInfo      TargetInfo      `json:"target_info"`
@@ -308,9 +313,11 @@ func LoadConversationList(userId int64) ([]ConversationListResult, error) {
 		CommunityId        *int64 `gorm:"column:community_id"`
 		PrivateHightUserId *int64 `gorm:"column:private_high_user_id"`
 		PrivateLowUserId   *int64 `gorm:"column:private_low_user_id"`
+		Status             int    `gorm:"column:status"`
 
 		IsPinned    bool `gorm:"column:is_pinned"`
 		IsMuted     bool `gorm:"column:is_muted"`
+		Role        int  `gorm:"column:role"`
 		UnreadCount int  `gorm:"column:unread_count"`
 
 		LastMessageId *int64     `gorm:"column:last_message_id"`
@@ -337,6 +344,7 @@ func LoadConversationList(userId int64) ([]ConversationListResult, error) {
 		Select(`
 			c.conversation_id,
 			c.type,
+			c.status,
 			c.community_id,
 			c.private_low_user_id,
 			c.private_high_user_id,
@@ -344,6 +352,7 @@ func LoadConversationList(userId int64) ([]ConversationListResult, error) {
 			cm.is_pinned,
 			cm.is_muted,
 			cm.unread_count,
+			cm.role,
 
 			m.message_id AS last_message_id,
 			m.from_id AS last_from_id,
@@ -378,14 +387,15 @@ func LoadConversationList(userId int64) ([]ConversationListResult, error) {
 			LEFT JOIN user_basic AS u_high ON c.type = 2 AND u_high.user_id = c.private_high_user_id
 		`).
 		Where(`
-			cm.user_id = ? AND cm.visible_at IS NOT NULL AND cm.left_at IS NULL AND c.status != 0
-		`, userId).Order("cm.is_pinned DESC").Order("c.last_message_at IS NULL ASC").Order("c.last_message_at DESC").Order("c.conversation_id DESC").Scan(&rows).Error
+			cm.user_id = ? AND cm.visible_at IS NOT NULL AND c.status IN ?
+		`, userId, []int{utils.ConversationStatusNormal, utils.ConversationStatusMuted, utils.ConversationStatusDissolved}).Order("cm.is_pinned DESC").Order("c.last_message_at IS NULL ASC").Order("c.last_message_at DESC").Order("c.conversation_id DESC").Scan(&rows).Error
 
 	if err != nil {
 		return nil, err
 	}
 
 	result := make([]ConversationListResult, 0, len(rows))
+	// 当关联记录不存在时，对应字段会是SQL NULL，所有查询结构必须使用指定，直接在json中解引用的化 Content: *row.LastContent如果为nil会panic
 	stringValue := func(value *string) string {
 		if value == nil {
 			return ""
@@ -460,6 +470,138 @@ func LoadConversationList(userId int64) ([]ConversationListResult, error) {
 	return result, nil
 }
 
+type ConversationDetail struct {
+	ConversationId int64      `json:"conversation_id"`
+	Type           int        `json:"type"`
+	Role           int        `json:"role"`
+	Status         int        `json:"status"` //1 正常  2禁言 3群聊已解散  4已退出群聊  5对方不是你的好友
+	TargetInfo     TargetInfo `json:"target_info"`
+}
+
+// 根据会话ID获取会话详情
+func GetConversationDetail(userId int64, conversationId int64) (*ConversationDetail, error) {
+	type conversationRow struct {
+		ConversationId     int64  `gorm:"column:conversation_id"`
+		Type               int    `gorm:"column:type"`
+		Status             int    `gorm:"column:status"`
+		CommunityId        *int64 `gorm:"column:community_id"`
+		PrivateHightUserId *int64 `gorm:"column:private_high_user_id"`
+		PrivateLowUserId   *int64 `gorm:"column:private_low_user_id"`
+
+		Role   int        `gorm:"column:role"`
+		LeftAt *time.Time `gorm:"column:left_at"`
+
+		CommunityName     *string    `gorm:"column:community_name"`
+		CommunityAvatar   *string    `gorm:"column:community_avatar"`
+		CommunityDesc     *string    `gorm:"column:community_desc"`
+		CommunityDeleteAt *time.Time `gorm:"column:community_deleted_at"`
+
+		LowName      *string    `gorm:"column:low_name"`
+		LowAvatar    *string    `gorm:"column:low_avatar"`
+		LowLeftAt    *time.Time `gorm:"column:low_deleted_at"`
+		HighName     *string    `gorm:"column:high_name"`
+		HighAvatar   *string    `gorm:"column:high_avatar"`
+		HighDeleteAt *time.Time `gorm:"column:high_deleted_at"`
+	}
+
+	var row conversationRow
+	err := utils.DB.Table("conversation AS c").
+		Select(`
+			c.conversation_id,
+			c.type,
+			c.status,
+			c.community_id,
+			c.private_high_user_id,
+			c.private_low_user_id,
+
+			cm.role,
+			cm.left_at,
+
+			cy.name AS community_name,
+			cy.img AS community_avatar,
+			cy.desc AS community_desc,
+			cy.deleted_at AS community_deleted_at,
+
+			u_low.name AS low_name,
+			u_low.avatar AS low_avatar,
+			u_low.deleted_at AS low_deleted_at,
+			u_high.name AS high_name,
+			u_high.avatar AS high_avatar,
+			u_high.deleted_at AS high_deleted_at
+		`).Joins(`
+			JOIN conversation_member AS cm ON cm.conversation_id = c.conversation_id
+		`).Joins(`
+			LEFT JOIN community AS cy ON cy.community_id = c.community_id AND c.type = 1
+		`).Joins(`
+			LEFT JOIN user_basic as u_low ON c.type = 2 AND u_low.user_id = c.private_low_user_id
+		`).Joins(`
+			LEFT JOIN user_basic as u_high ON c.type = 2 AND u_high.user_id = c.private_high_user_id
+		`).Where(`
+			c.status IN (1,2,3) AND cm.user_id = ? AND c.conversation_id = ?
+		`, userId, conversationId).Take(&row).Error
+	if err != nil {
+		return nil, err
+	}
+
+	stringValue := func(value *string) string {
+		if value == nil {
+			return ""
+		}
+		return *value
+	}
+
+	result := ConversationDetail{
+		ConversationId: row.ConversationId,
+		Type:           row.Type,
+		Status:         row.Status,
+	}
+
+	if row.Type == 1 && row.CommunityId != nil {
+		result.TargetInfo = TargetInfo{
+			TargetId: *row.CommunityId,
+			Name:     stringValue(row.CommunityName),
+			Avatar:   stringValue(row.CommunityAvatar),
+			Desc:     stringValue(row.CommunityDesc),
+		}
+	}
+
+	if row.Type == 2 {
+		targetId := row.PrivateHightUserId
+		targetName := row.HighName
+		targetAvatar := row.HighAvatar
+
+		if row.PrivateHightUserId != nil && *row.PrivateHightUserId == userId {
+			targetId = row.PrivateLowUserId
+			targetName = row.LowName
+			targetAvatar = row.LowAvatar
+		}
+
+		if targetId != nil {
+			result.TargetInfo = TargetInfo{
+				TargetId: *targetId,
+				Name:     stringValue(targetName),
+				Avatar:   stringValue(targetAvatar),
+			}
+		}
+	}
+
+	if row.LeftAt != nil {
+		if row.Type == 1 {
+			result.Status = utils.ConversationStatusLeft //已退出群聊
+		} else if row.Type == 2 {
+			isFriend, err := IsMutualFriend(utils.DB, *row.PrivateHightUserId, *row.PrivateLowUserId)
+			if err != nil {
+				return nil, err
+			}
+			if !isFriend {
+				result.Status = utils.ConversationStatusNotFriend // 好友关系已失效
+			}
+		}
+	}
+
+	return &result, nil
+}
+
 // 删除会话
 func DeleteConversation(userId int64, conversationId int64) error {
 	return utils.DB.Transaction(func(tx *gorm.DB) error {
@@ -474,7 +616,7 @@ func DeleteConversation(userId int64, conversationId int64) error {
 		}
 
 		result := tx.Model(&ConversationMember{}).
-			Where("user_id = ? AND conversation_id = ? AND left_at IS NULL", userId, conversationId).
+			Where("user_id = ? AND conversation_id = ?", userId, conversationId).
 			Updates(map[string]interface{}{
 				"visible_at":              nil,
 				"unread_count":            0,

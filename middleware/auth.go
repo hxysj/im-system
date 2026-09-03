@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hxysj/im-system/models"
 	"github.com/hxysj/im-system/utils"
 )
 
@@ -24,6 +25,22 @@ func AuthRequired() gin.HandlerFunc {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": -1, "msg": "登录失效", "data": nil})
 			return
 		}
+
+		var count int64
+		err = utils.DB.
+			Model(&models.UserBasic{}).
+			Where("user_id = ?", claims.UserId).
+			Count(&count).Error
+
+		if err != nil || count != 1 {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code": -1,
+				"msg":  "账号不存在或已注销",
+				"data": nil,
+			})
+			return
+		}
+
 		ctx.Set("current_user_id", claims.UserId)
 		ctx.Set("current_token_id", claims.ID)
 		ctx.Next()
@@ -44,6 +61,22 @@ func WebSocketAuthRequired() gin.HandlerFunc {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": -1, "msg": "登录失效"})
 			return
 		}
+
+		var count int64
+		err = utils.DB.
+			Model(&models.UserBasic{}).
+			Where("user_id = ?", claims.UserId).
+			Count(&count).Error
+
+		if err != nil || count != 1 {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"code": -1,
+				"msg":  "账户不存在或已注销",
+				"data": nil,
+			})
+			return
+		}
+
 		ctx.Set("current_user_id", claims.UserId)
 		ctx.Set("current_token_id", claims.ID)
 		ctx.Next()

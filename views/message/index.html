@@ -174,13 +174,25 @@
     </template>
   </div>
 
-  <form class="composer" @submit.prevent="sendMessage">
+  <form
+    class="composer"
+    :class="{ 'is-readonly': !canSendCurrentConversation }"
+    @submit.prevent="sendMessage"
+  >
+    <div
+      v-if="!canSendCurrentConversation"
+      class="composer-restriction"
+      role="status"
+    >
+      <i data-lucide="lock-keyhole"></i>
+      <span>{{ conversationSendRestriction }}</span>
+    </div>
     <button
       class="icon-button"
       type="button"
       title="发送图片"
       aria-label="发送图片"
-      :disabled="uploadingImage"
+      :disabled="uploadingImage || !canSendCurrentConversation"
       @click="$refs.imageInput.click()"
     >
       <i data-lucide="image-plus"></i>
@@ -197,6 +209,7 @@
       type="button"
       title="选择表情"
       aria-label="选择表情"
+      :disabled="!canSendCurrentConversation"
       @click="toggleEmojiPanel"
     >
       <i data-lucide="smile-plus"></i>
@@ -205,7 +218,8 @@
       v-model.trim="draft"
       class="composer-input"
       rows="1"
-      placeholder="输入消息"
+      :placeholder="canSendCurrentConversation ? '输入消息' : ''"
+      :disabled="!canSendCurrentConversation"
       @keydown.enter.exact.prevent="sendMessage"
     ></textarea>
     <button
@@ -213,12 +227,15 @@
       type="submit"
       title="发送消息"
       aria-label="发送消息"
-      :disabled="!draft"
+      :disabled="!draft || !canSendCurrentConversation"
     >
       <i data-lucide="send-horizontal"></i>
     </button>
 
-    <div v-if="emojiPanelOpen" class="emoji-panel">
+    <div
+      v-if="emojiPanelOpen && canSendCurrentConversation"
+      class="emoji-panel"
+    >
       <div class="emoji-panel-head">
         <span>表情包</span><span>{{ emojis.length }}</span>
       </div>
