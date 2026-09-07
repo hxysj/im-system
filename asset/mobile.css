@@ -496,6 +496,16 @@ button {
   background: #eef1ed;
 }
 
+.message-stream .message-history-control {
+  display: flex;
+  min-height: 42px;
+  margin-bottom: 12px;
+  align-items: center;
+  justify-content: center;
+  color: var(--mobile-muted);
+  font-size: 12px;
+}
+
 .message-item {
   display: flex;
   margin: 0 0 13px;

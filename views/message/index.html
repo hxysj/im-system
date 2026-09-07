@@ -12,7 +12,7 @@
       title="刷新会话"
       aria-label="刷新会话"
       :disabled="loading"
-      @click="refreshConversations"
+      @click="refreshConversations()"
     >
       <i data-lucide="refresh-cw"></i>
     </button>
@@ -131,9 +131,25 @@
     </button>
   </header>
 
-  <div ref="messageStream" class="message-stream">
+  <div
+    ref="messageStream"
+    class="message-stream"
+    @scroll.passive="handleMessageScroll"
+  >
     <div v-if="messageLoading" class="empty-mobile">
       <div><strong>正在加载历史消息</strong></div>
+    </div>
+    <div v-else-if="messageHistoryError && !messages.length" class="empty-mobile">
+      <div>
+        <strong>{{ messageHistoryError }}</strong>
+        <button
+          class="compact-button"
+          type="button"
+          @click="loadMessageHistory()"
+        >
+          重新加载
+        </button>
+      </div>
     </div>
     <div v-else-if="!messages.length" class="empty-mobile">
       <div>
@@ -143,6 +159,19 @@
       </div>
     </div>
     <template v-else>
+      <div class="message-history-control" role="status" aria-live="polite">
+        <span v-if="messageLoadingMore">正在加载更早消息…</span>
+        <button
+          v-else-if="messageHistoryError || messageHasMore"
+          class="compact-button"
+          type="button"
+          :title="messageHistoryError || '加载更早消息'"
+          @click="loadMessageHistory(messageHistoryPage > 0)"
+        >
+          {{ messageHistoryError ? '加载失败，点击重试' : '加载更早消息' }}
+        </button>
+        <span v-else-if="messageHistoryPage > 0">已加载全部历史消息</span>
+      </div>
       <div
         v-for="item in messages"
         :key="item.id"

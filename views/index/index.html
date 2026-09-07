@@ -1609,6 +1609,15 @@
               relationRequests: [],
               relationLoading: false,
               relationAction: null,
+              relationInitialized: false,
+              relationRequestVersion: 0,
+              relationPollTimer: null,
+              relationPolling: false,
+              listRequestVersions: {
+                friends: 0,
+                conversations: 0,
+                communities: 0
+              },
               communityInviteTarget: "",
               communityLoading: false,
               communitySaving: false,
@@ -1620,6 +1629,12 @@
               selectedConversation: null,
               messages: [],
               messageLoading: false,
+              messageLoadingMore: false,
+              messageHistoryPage: 0,
+              messageHistoryTotal: 0,
+              messageHistoryCursor: "",
+              messageHasMore: false,
+              messageHistoryError: "",
               messageHistoryRequest: 0,
               conversationDeleting: false,
               socket: null,
@@ -1718,6 +1733,7 @@
                   this.refreshFriends()
                 ])
                 this.connectSocket()
+                this.startRelationPolling()
               } catch (error) {
                 sessionStorage.removeItem("im-session")
               }
@@ -1725,6 +1741,10 @@
           },
           updated() {
             this.renderIcons()
+          },
+          beforeUnmount() {
+            this.stopRelationPolling()
+            this.messageHistoryRequest += 1
           },
           methods: {
             renderIcons() {
@@ -2037,6 +2057,7 @@
                 )
                 this.showToast("登录成功")
                 this.connectSocket()
+                this.startRelationPolling()
                 await Promise.all([
                   this.refreshConversations(),
                   this.refreshFriends()
@@ -2077,15 +2098,22 @@
                 this.loading = false
               }
             },
-            async refreshFriends() {
+            async refreshFriends(background = false) {
               if (!this.session.user) return
-              this.loading = true
+              const token = this.session.token
+              const version = ++this.listRequestVersions.friends
+              if (!background) this.loading = true
               try {
                 // 联系人仅使用关系表返回的数据，避免将系统全部用户当作好友。
                 const response = await api.post(
                   "/contact/getFriendsById",
                   this.formBody({ user_id: String(this.session.user.id) })
                 )
+                if (
+                  token !== this.session.token ||
+                  version !== this.listRequestVersions.friends
+                )
+                  return
                 const payload = response.data || {}
                 if (this.responseCode(payload) !== 0)
                   throw new Error(
@@ -2100,21 +2128,34 @@
                   throw new Error("好友列表响应格式错误")
                 this.friends = list
               } catch (error) {
-                this.showToast(
-                  "好友列表加载失败，请确认好友关系已建立",
-                  "error"
+                if (
+                  !background &&
+                  token === this.session.token &&
+                  version === this.listRequestVersions.friends
                 )
+                  this.showToast(
+                    "好友列表加载失败，请确认好友关系已建立",
+                    "error"
+                  )
               } finally {
-                this.loading = false
+                if (!background && token === this.session.token)
+                  this.loading = false
               }
             },
-            async refreshConversations() {
+            async refreshConversations(background = false) {
               if (!this.session.user) return
-              this.loading = true
+              const token = this.session.token
+              const version = ++this.listRequestVersions.conversations
+              if (!background) this.loading = true
               try {
                 const response = await api.get(
                   "/conversation/getConversationList"
                 )
+                if (
+                  token !== this.session.token ||
+                  version !== this.listRequestVersions.conversations
+                )
+                  return
                 const payload = response.data || {}
                 if (this.responseCode(payload) !== 0)
                   throw new Error(
@@ -2138,14 +2179,20 @@
                   }
                 }
               } catch (error) {
-                this.showToast(
-                  error.response?.data?.msg ||
-                    error.message ||
-                    "会话列表加载失败",
-                  "error"
+                if (
+                  !background &&
+                  token === this.session.token &&
+                  version === this.listRequestVersions.conversations
                 )
+                  this.showToast(
+                    error.response?.data?.msg ||
+                      error.message ||
+                      "会话列表加载失败",
+                    "error"
+                  )
               } finally {
-                this.loading = false
+                if (!background && token === this.session.token)
+                  this.loading = false
               }
             },
             // 搜索结果只展示，用户确认后才会发起添加好友请求。
@@ -2225,14 +2272,21 @@
               }
             },
             // 群聊接口复用现有表单编码，避免后端 PostForm 取值为空。
-            async refreshCommunities() {
+            async refreshCommunities(background = false) {
               if (!this.session.user) return
-              this.communityLoading = true
+              const token = this.session.token
+              const version = ++this.listRequestVersions.communities
+              if (!background) this.communityLoading = true
               try {
                 const response = await api.post(
                   "/community/getCommunityList",
                   this.formBody({ user_id: String(this.session.user.id) })
                 )
+                if (
+                  token !== this.session.token ||
+                  version !== this.listRequestVersions.communities
+                )
+                  return
                 const payload = response.data || {}
                 if ((payload.code ?? payload.Code) !== 0)
                   throw new Error(
@@ -2241,12 +2295,18 @@
                 const list = payload.data ?? payload.Data ?? payload.Rows
                 this.communities = Array.isArray(list) ? list : []
               } catch (error) {
-                this.showToast(
-                  error.response?.data?.msg || error.message || "群聊加载失败",
-                  "error"
+                if (
+                  !background &&
+                  token === this.session.token &&
+                  version === this.listRequestVersions.communities
                 )
+                  this.showToast(
+                    error.response?.data?.msg || error.message || "群聊加载失败",
+                    "error"
+                  )
               } finally {
-                this.communityLoading = false
+                if (!background && token === this.session.token)
+                  this.communityLoading = false
               }
             },
             requestId(item) {
@@ -2324,23 +2384,119 @@
                 this.requestIsPending(item) && !this.requestIsOutgoing(item)
               )
             },
-            async refreshRequests() {
+            startRelationPolling() {
+              this.stopRelationPolling()
+              this.relationPollTimer = setInterval(
+                this.checkRelationUpdates,
+                15000
+              )
+              document.addEventListener(
+                "visibilitychange",
+                this.checkRelationUpdates
+              )
+              window.addEventListener("focus", this.checkRelationUpdates)
+              this.refreshRequests(true)
+            },
+            stopRelationPolling() {
+              clearInterval(this.relationPollTimer)
+              this.relationPollTimer = null
+              this.relationPolling = false
+              this.relationRequestVersion += 1
+              document.removeEventListener(
+                "visibilitychange",
+                this.checkRelationUpdates
+              )
+              window.removeEventListener("focus", this.checkRelationUpdates)
+            },
+            async checkRelationUpdates() {
+              if (
+                !this.session.user ||
+                document.hidden ||
+                this.relationPolling ||
+                this.relationLoading ||
+                this.relationAction ||
+                this.loading ||
+                this.communityLoading
+              )
+                return
+              const timer = this.relationPollTimer
+              this.relationPolling = true
+              try {
+                await Promise.all([
+                  this.refreshRequests(true),
+                  this.refreshFriends(true),
+                  this.refreshCommunities(true),
+                  this.refreshConversations(true)
+                ])
+              } finally {
+                if (timer === this.relationPollTimer)
+                  this.relationPolling = false
+              }
+            },
+            async refreshRequests(background = false) {
               if (!this.session.user) return
-              this.relationLoading = true
+              const token = this.session.token
+              const version = ++this.relationRequestVersion
+              if (!background) this.relationLoading = true
               try {
                 const response = await api.get("/relation/getRelationList", {
                   params: { user_id: String(this.session.user.id) }
                 })
+                if (
+                  token !== this.session.token ||
+                  version !== this.relationRequestVersion
+                )
+                  return
                 const payload = response.data || {}
                 if ((payload.code ?? payload.Code) !== 0)
                   throw new Error("申请加载失败")
-                this.relationRequests =
+                const list =
                   payload.data ?? payload.Data ?? payload.Rows ?? []
+                if (!Array.isArray(list))
+                  throw new Error("申请响应格式错误")
+                if (this.relationInitialized) {
+                  const previousStatuses = new Map(
+                    this.relationRequests.map((item) => [
+                      this.requestId(item),
+                      Number(item.status ?? item.Status)
+                    ])
+                  )
+                  const changes = list.filter((item) => {
+                    const requestId = this.requestId(item)
+                    const status = Number(item.status ?? item.Status)
+                    return (
+                      requestId !== this.relationAction &&
+                      previousStatuses.get(requestId) !== status &&
+                      (this.requestCanAct(item) || status !== 1)
+                    )
+                  })
+                  if (changes.length === 1) {
+                    const item = changes[0]
+                    this.showToast(
+                      `${this.requestTitle(item)}：${this.requestStatusText(item)}`
+                    )
+                  } else if (changes.length > 1) {
+                    this.showToast(
+                      `有 ${changes.length} 条申请动态，请到通讯录查看`
+                    )
+                  }
+                }
+                this.relationRequests = list
+                this.relationInitialized = true
               } catch (error) {
-                this.showToast("申请加载失败", "error")
-                return
+                if (
+                  !background &&
+                  token === this.session.token &&
+                  version === this.relationRequestVersion
+                )
+                  this.showToast("申请加载失败", "error")
               } finally {
-                this.relationLoading = false
+                if (
+                  !background &&
+                  token === this.session.token &&
+                  version === this.relationRequestVersion
+                )
+                  this.relationLoading = false
               }
             },
             async openRequests() {
@@ -2364,14 +2520,12 @@
                 if ((payload.code ?? payload.Code) !== 0)
                   throw new Error(payload.msg || payload.message || "操作失败")
                 this.showToast(status === 2 ? "已接受申请" : "已拒绝申请")
-                const type = Number(item.type ?? item.Type)
-                const refreshTasks = [this.refreshRequests()]
-                if (type === 1) refreshTasks.push(this.refreshFriends())
-                if (type === 3 && status === 2) {
-                  refreshTasks.push(this.refreshCommunities())
-                  refreshTasks.push(this.refreshConversations())
-                }
-                await Promise.all(refreshTasks)
+                await Promise.all([
+                  this.refreshRequests(),
+                  this.refreshFriends(),
+                  this.refreshCommunities(),
+                  this.refreshConversations()
+                ])
               } catch (error) {
                 this.showToast(
                   error.response?.data?.msg || error.message || "操作失败",
@@ -2411,8 +2565,7 @@
               await this.openContacts()
             },
             async openContacts() {
-              this.messageHistoryRequest += 1
-              this.messageLoading = false
+              this.resetMessageHistory()
               this.selectedUser = null
               this.selectedConversation = null
               this.messages = []
@@ -2420,8 +2573,7 @@
               await this.refreshContacts()
             },
             async openSessions() {
-              this.messageHistoryRequest += 1
-              this.messageLoading = false
+              this.resetMessageHistory()
               this.selectedUser = null
               this.selectedConversation = null
               this.messages = []
@@ -2429,8 +2581,7 @@
               await this.refreshConversations()
             },
             async openProfile() {
-              this.messageHistoryRequest += 1
-              this.messageLoading = false
+              this.resetMessageHistory()
               this.selectedUser = null
               this.selectedConversation = null
               this.messages = []
@@ -2613,40 +2764,103 @@
                 this.scheduleConversationRead(conversation.id)
             },
             closeConversation() {
-              this.messageHistoryRequest += 1
-              this.messageLoading = false
+              this.resetMessageHistory()
               this.selectedUser = null
               this.selectedConversation = null
               this.messages = []
               this.emojiPanelOpen = false
               this.currentView = "chat"
             },
-            async loadMessageHistory() {
+            resetMessageHistory() {
+              this.messageHistoryRequest += 1
+              this.messageLoading = false
+              this.messageLoadingMore = false
+              this.messageHistoryPage = 0
+              this.messageHistoryTotal = 0
+              this.messageHistoryCursor = ""
+              this.messageHasMore = false
+              this.messageHistoryError = ""
+            },
+            handleMessageScroll() {
+              const node = this.$refs.messageStream
+              if (node && node.scrollTop <= 64 && !this.messageHistoryError)
+                this.loadMessageHistory(true)
+            },
+            async loadMessageHistory(loadOlder = false) {
               const conversationId = this.selectedConversation?.id
-              if (!conversationId) return
+              if (!conversationId || !this.session.user) return false
+              if (
+                loadOlder &&
+                (this.messageLoading ||
+                  this.messageLoadingMore ||
+                  !this.messageHasMore)
+              )
+                return false
+              if (!loadOlder) this.resetMessageHistory()
+              const token = this.session.token
               const requestId = ++this.messageHistoryRequest
-              this.messageLoading = true
+              const cursor = this.messageHistoryCursor
+              const limit = 30
+              let page = loadOlder ? Math.max(1, this.messageHistoryPage) : 1
+              this.messageLoading = !loadOlder
+              this.messageLoadingMore = loadOlder
+              this.messageHistoryError = ""
               try {
-                const response = await api.get("/msg/getMessageList", {
-                  params: {
-                    conversation_id: conversationId,
-                    limit: 30,
-                    page: 1
-                  }
-                })
-                if (
-                  requestId !== this.messageHistoryRequest ||
-                  this.selectedConversation?.id !== conversationId
-                )
-                  return false
-                const payload = response.data || {}
-                if (this.responseCode(payload) !== 0)
-                  throw new Error(
-                    payload.msg || payload.message || "历史消息加载失败"
+                let list = []
+                let total = 0
+                let hasMore = false
+                let foundHistory = false
+                for (let attempt = 0; attempt < 10; attempt += 1) {
+                  const response = await api.get("/msg/getMessageList", {
+                    params: { conversation_id: conversationId, limit, page }
+                  })
+                  if (
+                    requestId !== this.messageHistoryRequest ||
+                    token !== this.session.token ||
+                    this.selectedConversation?.id !== conversationId
                   )
-                const list = this.responseData(payload) ?? payload.Rows ?? []
-                if (!Array.isArray(list))
-                  throw new Error("历史消息响应格式错误")
+                    return false
+                  const payload = response.data || {}
+                  if (this.responseCode(payload) !== 0)
+                    throw new Error(
+                      payload.msg || payload.message || "历史消息加载失败"
+                    )
+                  list = this.responseData(payload) ?? payload.Rows ?? []
+                  if (!Array.isArray(list))
+                    throw new Error("历史消息响应格式错误")
+                  total = Number(payload.total ?? payload.Total ?? 0)
+                  hasMore = list.length === limit && page * limit < total
+                  if (
+                    loadOlder &&
+                    total < this.messageHistoryTotal &&
+                    page > 1
+                  ) {
+                    page = 1
+                    this.messageHistoryPage = 0
+                    this.messageHistoryTotal = total
+                    continue
+                  }
+                  if (loadOlder && cursor) {
+                    list = list.filter((item) => {
+                      const messageId = String(
+                        item.message_id ?? item.MessageId ?? ""
+                      )
+                      return (
+                        messageId.length < cursor.length ||
+                        (messageId.length === cursor.length && messageId < cursor)
+                      )
+                    })
+                  }
+                  if (list.length || !hasMore || !loadOlder) {
+                    foundHistory = true
+                    break
+                  }
+                  this.messageHistoryPage = page
+                  this.messageHistoryTotal = total
+                  page += 1
+                }
+                if (!foundHistory)
+                  throw new Error("新消息较多，请点击继续加载更早消息")
                 const historyMessages = list
                   .slice()
                   .reverse()
@@ -2668,35 +2882,69 @@
                       time: this.formatMessageTime(createdAt)
                     }
                   })
+                const node = this.$refs.messageStream
+                const scrollHeight = node?.scrollHeight || 0
+                const scrollTop = node?.scrollTop || 0
+                const anchor =
+                  loadOlder && node
+                    ? Array.from(node.querySelectorAll(".message-item")).find(
+                        (item) =>
+                          item.getBoundingClientRect().bottom >
+                          node.getBoundingClientRect().top
+                      )
+                    : null
+                const anchorTop = anchor?.getBoundingClientRect().top || 0
                 const historyIds = new Set(
                   historyMessages.map((message) => message.id)
                 )
-                // 保留历史请求期间已由 WebSocket 收到的新消息。
                 this.messages = [
                   ...historyMessages,
                   ...this.messages.filter(
                     (message) => !historyIds.has(message.id)
                   )
                 ]
-                this.scrollMessages()
+                this.messageHistoryPage = page
+                this.messageHistoryTotal = total
+                this.messageHasMore = hasMore
+                if (historyMessages.length)
+                  this.messageHistoryCursor = historyMessages[0].id
+                await this.$nextTick()
+                if (
+                  requestId !== this.messageHistoryRequest ||
+                  token !== this.session.token ||
+                  this.selectedConversation?.id !== conversationId
+                )
+                  return false
+                if (loadOlder && node && node === this.$refs.messageStream) {
+                  if (anchor && node.contains(anchor)) {
+                    node.scrollTop +=
+                      anchor.getBoundingClientRect().top - anchorTop
+                  } else {
+                    node.scrollTop = scrollTop + node.scrollHeight - scrollHeight
+                  }
+                } else if (!loadOlder) {
+                  this.messageLoading = false
+                  this.scrollMessages()
+                }
                 return true
               } catch (error) {
                 if (
                   requestId !== this.messageHistoryRequest ||
+                  token !== this.session.token ||
                   this.selectedConversation?.id !== conversationId
                 )
                   return false
-                this.messages = []
-                this.showToast(
+                this.messageHistoryError =
                   error.response?.data?.msg ||
-                    error.message ||
-                    "历史消息加载失败",
-                  "error"
-                )
+                  error.message ||
+                  "历史消息加载失败"
+                this.showToast(this.messageHistoryError, "error")
                 return false
               } finally {
-                if (requestId === this.messageHistoryRequest)
+                if (requestId === this.messageHistoryRequest) {
                   this.messageLoading = false
+                  this.messageLoadingMore = false
+                }
               }
             },
             async markConversationRead(conversationId) {
@@ -2860,6 +3108,16 @@
                   this.showToast("收到一条新消息")
                   return
                 }
+                if (
+                  messageId &&
+                  this.messages.some((message) => message.id === messageId)
+                )
+                  return
+                const stream = this.$refs.messageStream
+                const nearBottom =
+                  !stream ||
+                  stream.scrollHeight - stream.scrollTop - stream.clientHeight <=
+                    80
                 this.messages.push({
                   id: messageId || `${Date.now()}-${Math.random()}`,
                   content,
@@ -2871,7 +3129,8 @@
                   time: this.formatMessageTime(createdAt)
                 })
                 this.scheduleConversationRead(conversationId)
-                this.scrollMessages()
+                if (nearBottom && !this.messageLoadingMore)
+                  this.scrollMessages()
               }
             },
             sendMessage() {
@@ -2985,12 +3244,24 @@
               })
             },
             scrollMessages() {
+              const conversationId = this.selectedConversation?.id
               this.$nextTick(() => {
                 const node = this.$refs.messageStream
-                if (node) node.scrollTop = node.scrollHeight
+                if (node && this.selectedConversation?.id === conversationId)
+                  node.scrollTop = node.scrollHeight
               })
             },
             clearLocalSession() {
+              this.stopRelationPolling()
+              this.resetMessageHistory()
+              this.relationInitialized = false
+              this.relationLoading = false
+              this.relationAction = null
+              this.loading = false
+              this.communityLoading = false
+              Object.keys(this.listRequestVersions).forEach((key) => {
+                this.listRequestVersions[key] += 1
+              })
               this.readTimers.forEach((timer) => clearTimeout(timer))
               this.readTimers.clear()
               const socket = this.socket

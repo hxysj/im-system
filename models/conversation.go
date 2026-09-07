@@ -375,7 +375,7 @@ func LoadConversationList(userId int64) ([]ConversationListResult, error) {
 			JOIN conversation_member AS cm ON cm.conversation_id = c.conversation_id
 		`).
 		Joins(`
-			LEFT JOIN message AS m ON m.message_id = c.last_message_id AND m.conversation_id = c.conversation_id
+			LEFT JOIN message AS m ON m.message_id = c.last_message_id AND m.conversation_id = c.conversation_id AND m.message_id > cm.clear_before_message_id
 		`).
 		Joins(`
 			LEFT JOIN community AS g ON c.type = 1 AND g.community_id = c.community_id
@@ -388,7 +388,12 @@ func LoadConversationList(userId int64) ([]ConversationListResult, error) {
 		`).
 		Where(`
 			cm.user_id = ? AND cm.visible_at IS NOT NULL AND c.status IN ?
-		`, userId, []int{utils.ConversationStatusNormal, utils.ConversationStatusMuted, utils.ConversationStatusDissolved}).Order("cm.is_pinned DESC").Order("c.last_message_at IS NULL ASC").Order("c.last_message_at DESC").Order("c.conversation_id DESC").Scan(&rows).Error
+		`, userId, []int{utils.ConversationStatusNormal, utils.ConversationStatusMuted, utils.ConversationStatusDissolved}).
+		Order("cm.is_pinned DESC").
+		Order("c.last_message_at IS NULL ASC").
+		Order("c.last_message_at DESC").
+		Order("c.conversation_id DESC").
+		Scan(&rows).Error
 
 	if err != nil {
 		return nil, err
@@ -633,4 +638,51 @@ func DeleteConversation(userId int64, conversationId int64) error {
 
 		return nil
 	})
+}
+
+// 修改会话状态
+func ChangeConversationStatus(userId int64, conversationId int64, changeType int, status int) error {
+
+	var statusResult bool
+	if status == 2 {
+		statusResult = true
+	} else {
+		statusResult = false
+	}
+
+	var conversationMember ConversationMember
+
+	tx := utils.DB.Begin()
+
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Table("conversation_member AS cm").Select("cm.*").
+		Joins("JOIN conversation AS c ON c.conversation_id = cm.conversation_id").
+		Where("c.conversation_id = ? AND cm.user_id = ? AND  cm.left_at IS NULL AND cm.visible_at IS NOT NULL", conversationId, userId).
+		Take(&conversationMember).Error
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	switch changeType {
+	case 1:
+		updateErr := tx.Model(&conversationMember).Update("is_pinned", statusResult).Error
+		if updateErr != nil {
+			tx.Rollback()
+			return updateErr
+		}
+	case 2:
+		updateErr := tx.Model(&conversationMember).Update("is_muted", statusResult).Error
+		if updateErr != nil {
+			tx.Rollback()
+			return updateErr
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
 }

@@ -109,3 +109,42 @@ func DeleteConversation(ctx *gin.Context) {
 		utils.RespOk(ctx.Writer, nil, "删除成功")
 	}
 }
+
+// 设置会话状态 1 置顶状态  2 免打扰状态
+func ChangeConversationStatus(ctx *gin.Context) {
+	user_id := ctx.GetInt64("current_user_id")
+
+	conversation_id, err := strconv.Atoi(ctx.PostForm("conversation_id"))
+	if err != nil {
+		fmt.Println("修改会话状态的参数有误：", err)
+		utils.RespFail(ctx.Writer, "参数有误")
+	}
+
+	change_type, err := strconv.Atoi(ctx.PostForm("type"))
+	if err != nil {
+		fmt.Println("修改会话状态的参数有误：", err)
+		utils.RespFail(ctx.Writer, "参数有误")
+	}
+
+	status, err := strconv.Atoi(ctx.PostForm("status"))
+	if err != nil {
+		fmt.Println("修改会话状态的参数有误：", err)
+		utils.RespFail(ctx.Writer, "参数有误")
+	}
+
+	//  1 不置顶，打扰   2 指定，免打扰
+	if status != 1 && status != 2 {
+		status = 1
+	}
+
+	resErr := models.ChangeConversationStatus(user_id, int64(conversation_id), change_type, status)
+	if resErr != nil {
+		utils.RespFail(ctx.Writer, "修改失败")
+	} else {
+		result, listErr := models.LoadConversationList(user_id)
+		if listErr != nil {
+			fmt.Println("获取新的列表失败")
+		}
+		utils.RespOk(ctx.Writer, result, "修改成功")
+	}
+}

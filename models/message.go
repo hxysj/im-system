@@ -395,10 +395,24 @@ func sendMsg(userId int64, msg []byte) {
 	// 获取接收者的实例
 	node, ok := clientMap[userId]
 	rwLocker.Unlock()
-	if ok {
-		// 将消息存入接收者实例的消息队列中
-		node.DataQueue <- msg
+	if !ok {
+		return
 	}
+
+	select {
+	case <-node.Done:
+		return
+	// 将消息存入接收者实例的消息队列中
+	case node.DataQueue <- msg:
+		return
+	default:
+		fmt.Println("消息队列已满，关闭慢连接：%d\n", userId)
+		_ = node.Conn.Close()
+	}
+
+	// 将消息存入接收者实例的消息队列中
+	// node.DataQueue <- msg
+
 }
 
 type MessageUserInfo struct {

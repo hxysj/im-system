@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/asaskevich/govalidator"
@@ -93,7 +94,16 @@ func CreateUser(ctx *gin.Context) {
 	user.Salt = salt
 	user.UserId = utils.NextId()
 
-	models.CreateUser(user)
+	err := models.CreateUser(user).Error
+
+	if err != nil {
+		fmt.Println("新增用户失败:", err)
+		ctx.JSON(200, gin.H{
+			"code":    -1,
+			"message": "新增用户失败！",
+		})
+		return
+	}
 
 	ctx.JSON(200, gin.H{
 		"code":    0,
@@ -168,7 +178,13 @@ func UpdateUser(ctx *gin.Context) {
 		return
 	}
 
-	models.UpdateUser(user)
+	updateErr := models.UpdateUser(user).Error
+
+	if updateErr != nil {
+		fmt.Println("update is failed： ", updateErr)
+		utils.RespFail(ctx.Writer, "更新用户数据失败！")
+		return
+	}
 
 	ctx.JSON(200, gin.H{
 		"code":    0,
@@ -188,11 +204,8 @@ func Login(ctx *gin.Context) {
 	password := ctx.PostForm("password")
 
 	res := models.FindUserByName(name)
-	if res.Name == "" {
-		ctx.JSON(200, gin.H{
-			"code":    0,
-			"message": "登录失败！",
-		})
+	if strings.Trim(res.Name, " ") == "" {
+		utils.RespFail(ctx.Writer, "登录失败！")
 		return
 	}
 
@@ -277,6 +290,11 @@ func UpdatePassword(ctx *gin.Context) {
 
 	if newPassword != reNewPassword {
 		utils.RespFail(ctx.Writer, "两次密码不一致")
+		return
+	}
+
+	if strings.Trim(newPassword, " ") == "" {
+		utils.RespFail(ctx.Writer, "密码不能为空")
 		return
 	}
 
