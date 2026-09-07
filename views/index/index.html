@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -1637,6 +1637,7 @@
               messageHistoryError: "",
               messageHistoryRequest: 0,
               conversationDeleting: false,
+              activeConversationMenu: null,
               socket: null,
               socketConnected: false,
               readTimers: new Map(),
@@ -1722,6 +1723,9 @@
           mounted() {
             this.loadEmojis()
             this.renderIcons()
+            document.addEventListener("click", () => {
+              this.activeConversationMenu = null
+            })
             const cached = sessionStorage.getItem("im-session")
             if (cached) {
               try {
@@ -3035,6 +3039,55 @@
               } finally {
                 this.conversationDeleting = false
               }
+            },
+            async changeConversationStatus(conversation, type, status) {
+              if (!conversation?.id) return
+              try {
+                const response = await api.post(
+                  '/conversation/changeConversationStatus',
+                  this.formBody({
+                    conversation_id: conversation.id,
+                    type,
+                    status
+                  })
+                )
+                const payload = response.data || {}
+                if (this.responseCode(payload) !== 0)
+                  throw new Error(payload.msg || '修改失败')
+                const list = this.responseData(payload) ?? payload.Rows ?? []
+                if (Array.isArray(list)) {
+                  this.conversations = list
+                    .map((item) => this.normalizeConversation(item))
+                    .filter((item) => item.id)
+                  if (this.selectedConversation) {
+                    const current = this.conversations.find(
+                      (item) => item.id === this.selectedConversation.id
+                    )
+                    if (current) {
+                      this.selectedConversation = current
+                      this.selectedUser = current.target
+                    }
+                  }
+                  this.$nextTick(() => this.renderIcons())
+                }
+                this.activeConversationMenu = null
+                this.showToast(payload.msg || '修改成功')
+              } catch (error) {
+                this.showToast(
+                  error.response?.data?.msg ||
+                    error.message ||
+                    '修改失败',
+                  'error'
+                )
+              }
+            },
+            toggleConversationMenu(conversation) {
+              if (this.activeConversationMenu === conversation.id) {
+                this.activeConversationMenu = null
+                return
+              }
+              this.activeConversationMenu = conversation.id
+              this.$nextTick(() => this.renderIcons())
             },
             connectSocket() {
               if (!this.session.user || !this.session.token) return

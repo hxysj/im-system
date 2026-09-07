@@ -427,6 +427,8 @@ func LoadConversationList(userId int64) ([]ConversationListResult, error) {
 			IsMuted:        row.IsMuted,
 			UnreadCount:    row.UnreadCount,
 			Type:           row.Type,
+			Status:         row.Status,
+			Role:           row.Role,
 		}
 
 		if row.Type == 1 && row.CommunityId != nil {
@@ -559,6 +561,7 @@ func GetConversationDetail(userId int64, conversationId int64) (*ConversationDet
 		ConversationId: row.ConversationId,
 		Type:           row.Type,
 		Status:         row.Status,
+		Role:           row.Role,
 	}
 
 	if row.Type == 1 && row.CommunityId != nil {

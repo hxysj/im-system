@@ -12,22 +12,6 @@ import (
 	"github.com/hxysj/im-system/utils"
 )
 
-// GetUserList
-// Summary 所有用户
-// @Tags 用户模块
-// @Success 200 {string} json{"code","message"}
-// @Router /user/getUserList [get]
-func GetUserList(ctx *gin.Context) {
-	data := make([]models.UserBasic, 10)
-	data = models.GetUserList()
-
-	ctx.JSON(200, gin.H{
-		"code":    0,
-		"message": data,
-	})
-
-}
-
 // CreateUser
 // Summary 新增用户
 // @Tags 用户模块

@@ -2,9 +2,11 @@ package models
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/hxysj/im-system/utils"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Community struct {
@@ -113,4 +115,39 @@ func LoadCommunity(owner_id uint) (int, []LoadCommunityResult, string) {
 	}
 
 	return 0, data, "查询成功"
+}
+
+func DeleteCommunity(user_id int64, community_id int64) error {
+	var community Community
+	if err := utils.DB.Model(&Community{}).
+		Where("owner_id = ? AND community_id = ? ADN delete_at IS NULL").
+		Take(&community).Error; err != nil {
+		return err
+	}
+
+	return utils.DB.Transaction(func(tx *gorm.DB) error {
+		var conversation Conversation
+		if err := tx.Model(&Conversation{}).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("community_id = ? AND type = ? AND status != 3", community_id, 1).
+			Take(&conversation).Error; err != nil {
+			return err
+		}
+
+		nowTime := time.Now()
+		updateMemberRes := tx.Model(&ConversationMember{}).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("conversation_id = ?", conversation.ConversationId).Update("left_at", nowTime)
+
+		if updateMemberRes.Error != nil {
+			return updateMemberRes.Error
+		}
+		if updateMemberRes.RowsAffected != 1 {
+			return gorm.ErrRecordNotFound
+		}
+
+		
+	})
+
+	return nil
 }

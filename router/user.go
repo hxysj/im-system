@@ -18,7 +18,6 @@ func RegisterUserRoutes(r *gin.RouterGroup) {
 	user := r.Group("/user")
 	{
 		// 用户模块
-		user.GET("/getUserList", service.GetUserList)
 		user.GET("/deleteUser", service.DeleteUser)
 		user.POST("/update", service.UpdateUser)
 		user.POST("/searchUser", service.SearchUser)

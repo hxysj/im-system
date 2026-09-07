@@ -1,10 +1,12 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/hxysj/im-system/utils"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type RelationRequest struct {
@@ -287,24 +289,44 @@ func ToggleRelationRequestStatus(r_id int64, user_id int64, status int) (int, st
 			return -1, "参数有误"
 		}
 
-		res := AddFriend(uint(relationRequestInfo.RequesterId), uint(relationRequestInfo.TargetId))
+		relErr := utils.DB.Transaction(func(tx *gorm.DB) error {
+			var request RelationRequest
+			err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("request_id = ? AND status = ?", r_id, 1).Take(&request).Error
 
-		if res != 0 {
+			if err != nil {
+				return err
+			}
+
+			if request.Type != 1 || request.TargetId != user_id {
+				return errors.New("无权处理该请求")
+			}
+
+			if err := AddFriendTx(*tx, uint(request.TargetId), uint(request.RequesterId)); err != nil {
+				return err
+			}
+
+			result := tx.Model(&RelationRequest{}).
+				Where("request_id = ? AND status = ?", r_id, 1).
+				Update("status", 2)
+
+			if result.Error != nil {
+				return result.Error
+			}
+
+			if result.RowsAffected != 1 {
+				return gorm.ErrRecordNotFound
+			}
+
+			_, _, err = CreateConversationTx(tx, request.RequesterId, request.TargetId, 1)
+			return err
+		})
+
+		if relErr != nil {
 			return -1, "修改失败"
 		}
 
-		if err := utils.DB.Model(&RelationRequest{}).Where("request_id = ? AND status = ?", r_id, 1).Update("status", 2).Error; err != nil {
-			fmt.Println(err)
-			return -1, "修改失败"
-		}
-
-		// 添加好友成功后，默认创建一个聊天会话
-		_, _, err := CreateConversation(relationRequestInfo.RequesterId, relationRequestInfo.TargetId, 2)
-		if err != nil {
-			fmt.Println(err)
-			return -1, "创建会话失败"
-		}
-
+		return 0, "修改成功"
 	} else {
 
 		var community Community
@@ -345,9 +367,14 @@ func ToggleRelationRequestStatus(r_id int64, user_id int64, status int) (int, st
 			return -1, "修改失败"
 		}
 
-		tx.Commit()
+		_, _, err := CreateConversationTx(tx, relationRequestInfo.RequesterId, relationRequestInfo.TargetId, 1)
 
-		_, _, err := CreateConversation(relationRequestInfo.RequesterId, relationRequestInfo.TargetId, 1)
+		if err != nil {
+			tx.Rollback()
+			return -1, "修改失败"
+		}
+
+		tx.Commit()
 
 		if err != nil {
 			fmt.Println(err)

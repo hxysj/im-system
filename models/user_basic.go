@@ -31,13 +31,6 @@ func (table *UserBasic) TableName() string {
 	return "user_basic"
 }
 
-// 获取用户列表
-func GetUserList() []UserBasic {
-	data := make([]UserBasic, 10)
-	utils.DB.Find(&data)
-	return data
-}
-
 func FindUserById(id int64) UserBasic {
 	user := UserBasic{}
 	utils.DB.Where("user_id = ?", id).Take(&user)
@@ -88,14 +81,43 @@ func DeleteUser(userId int64) error {
 		}
 
 		// 将对应的会话 status设置成 2 表示无法发送消息
-		conversationIds := tx.Model(&ConversationMember{}).Select("conversation_id").Where("user_id = ?", userId)
+		var conversationIds []int64
+		if err := tx.Model(&ConversationMember{}).
+			Select("conversation_id").Where("user_id = ?", userId).
+			Pluck("conversation_id", &conversationIds).
+			Error; err != nil {
+			return err
+		}
 
-		result := tx.Model(&Conversation{}).
-			Where("type = ? AND status = ? AND conversation_id IN ?", utils.ConversationStatusNormal, 1, conversationIds).
-			Update("status", utils.ConversationStatusDissolved)
+		var ownedCommunityIDs []int64
+		if err := tx.Model(&Community{}).
+			Where("owner_id = ?", userId).
+			Pluck("community_id", &ownedCommunityIDs).Error; err != nil {
+			return err
+		}
 
-		if result.Error != nil {
-			return result.Error
+		if len(ownedCommunityIDs) > 0 {
+			result := tx.Model(&Conversation{}).
+				Where("type = ? AND status IN ? AND community_id IN ?",
+					1, []int{
+						utils.ConversationStatusNormal,
+						utils.ConversationStatusMuted,
+					},
+					ownedCommunityIDs,
+				).Update("status", utils.ConversationStatusDissolved)
+			if result.Error != nil {
+				return result.Error
+			}
+		}
+
+		if len(conversationIds) > 0 {
+			result := tx.Model(&Conversation{}).
+				Where("type = ? AND status = ? AND conversation_id IN ?", utils.ConversationStatusNormal, 1, conversationIds).
+				Update("status", utils.ConversationStatusDissolved)
+
+			if result.Error != nil {
+				return result.Error
+			}
 		}
 
 		// 删除对应的关系表

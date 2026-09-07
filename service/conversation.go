@@ -118,18 +118,27 @@ func ChangeConversationStatus(ctx *gin.Context) {
 	if err != nil {
 		fmt.Println("修改会话状态的参数有误：", err)
 		utils.RespFail(ctx.Writer, "参数有误")
+		return
 	}
 
 	change_type, err := strconv.Atoi(ctx.PostForm("type"))
 	if err != nil {
 		fmt.Println("修改会话状态的参数有误：", err)
 		utils.RespFail(ctx.Writer, "参数有误")
+		return
 	}
 
 	status, err := strconv.Atoi(ctx.PostForm("status"))
 	if err != nil {
 		fmt.Println("修改会话状态的参数有误：", err)
 		utils.RespFail(ctx.Writer, "参数有误")
+		return
+	}
+
+	if conversation_id <= 0 || user_id <= 0 {
+		fmt.Println("修改会话的参数有误:", err)
+		utils.RespFail(ctx.Writer, "参数有误")
+		return
 	}
 
 	//  1 不置顶，打扰   2 指定，免打扰

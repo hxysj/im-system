@@ -1,4 +1,4 @@
-<section v-if="currentView === 'chat' && !selectedUser" class="mobile-screen">
+﻿<section v-if="currentView === 'chat' && !selectedUser" class="mobile-screen">
   <header class="mobile-page-header">
     <div class="mobile-title-block">
       <span class="mobile-eyebrow"
@@ -61,9 +61,44 @@
             >{{ conversationPreview(conversation) }}</span
           >
         </span>
-        <span v-if="conversation.unreadCount" class="status-chip">
-          {{ conversation.unreadCount > 99 ? '99+' : conversation.unreadCount }}
+        <span class="session-badges">
+          <span v-if="conversation.isPinned" class="status-badge pin-badge" title="已置顶"><i data-lucide="pin"></i></span>
+          <span v-if="conversation.isMuted" class="status-badge mute-badge" title="消息免打扰"><i data-lucide="bell-off"></i></span>
+          <span v-if="conversation.unreadCount" class="status-chip">
+            {{ conversation.unreadCount > 99 ? "99+" : conversation.unreadCount }}
+          </span>
         </span>
+        <button
+          class="session-more"
+          type="button"
+          title="更多操作"
+          aria-label="更多操作"
+          @click.stop="toggleConversationMenu(conversation)"
+        >
+          <i data-lucide="more-vertical"></i>
+        </button>
+        <div
+          v-if="activeConversationMenu === conversation.id"
+          class="conversation-menu"
+          @click.stop
+        >
+          <button
+            type="button"
+            class="menu-item"
+            @click="changeConversationStatus(conversation, 1, conversation.isPinned ? 2 : 1)"
+          >
+            <i :data-lucide="conversation.isPinned ? &apos;pin-off&apos; : &apos;pin&apos;"></i>
+            <span>{{ conversation.isPinned ? "取消置顶" : "置顶会话" }}</span>
+          </button>
+          <button
+            type="button"
+            class="menu-item"
+            @click="changeConversationStatus(conversation, 2, conversation.isMuted ? 2 : 1)"
+          >
+            <i :data-lucide="conversation.isMuted ? &apos;bell&apos; : &apos;bell-off&apos;"></i>
+            <span>{{ conversation.isMuted ? "取消免打扰" : "消息免打扰" }}</span>
+          </button>
+        </div>
       </button>
     </div>
     <div v-else class="empty-mobile">

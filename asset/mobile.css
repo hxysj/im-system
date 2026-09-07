@@ -1,15 +1,15 @@
 :root {
-  --mobile-canvas: #dfe4df;
-  --mobile-bg: #f5f6f3;
+  --mobile-canvas: #e6eaf2;
+  --mobile-bg: #f6f8fc;
   --mobile-surface: #ffffff;
-  --mobile-ink: #17201b;
-  --mobile-muted: #758078;
-  --mobile-line: #e4e8e3;
-  --mobile-accent: #14765a;
-  --mobile-accent-soft: #e2f2ec;
+  --mobile-ink: #1d2942;
+  --mobile-muted: #72809a;
+  --mobile-line: #e1e6ef;
+  --mobile-accent: #4662d8;
+  --mobile-accent-soft: #ebefff;
   --mobile-coral: #d96852;
-  --mobile-amber: #e7b24d;
-  --mobile-shadow: 0 18px 50px rgba(31, 45, 37, 0.14);
+  --mobile-amber: #d89a3f;
+  --mobile-shadow: 0 18px 50px rgba(36, 51, 86, 0.14);
 }
 
 html,
@@ -168,7 +168,7 @@ button {
   top: 12px;
   left: 29px;
   display: inline-flex;
-  color: #8b958e;
+  color: #8290aa;
   pointer-events: none;
 }
 
@@ -179,15 +179,15 @@ button {
   border: 1px solid transparent;
   border-radius: 8px;
   outline: 0;
-  background: #e9ece8;
+  background: #edf1f7;
   color: var(--mobile-ink);
   font-size: 14px;
 }
 
 .mobile-search-input:focus {
-  border-color: rgba(20, 118, 90, 0.45);
+  border-color: rgba(70, 98, 216, 0.45);
   background: var(--mobile-surface);
-  box-shadow: 0 0 0 3px rgba(20, 118, 90, 0.1);
+  box-shadow: 0 0 0 3px rgba(70, 98, 216, 0.1);
 }
 
 .mobile-scroll {
@@ -233,7 +233,7 @@ button {
 
 .session-row:active,
 .mobile-list-row:active {
-  background: #f0f3ef;
+  background: #eef2f8;
 }
 
 .mobile-avatar {
@@ -246,8 +246,8 @@ button {
   justify-content: center;
   overflow: hidden;
   border-radius: 50%;
-  background: #d9ece5;
-  color: #0f664d;
+  background: #e7ecff;
+  color: #3651b3;
   font-size: 18px;
   font-weight: 800;
 }
@@ -258,7 +258,7 @@ button {
 }
 
 .mobile-avatar.dark {
-  background: #24362d;
+  background: #3a4662;
   color: #ffffff;
 }
 
@@ -283,7 +283,7 @@ button {
   height: 11px;
   border: 2px solid var(--mobile-surface);
   border-radius: 50%;
-  background: #2cad79;
+  background: #5c7cf0;
 }
 
 .session-copy,
@@ -313,7 +313,7 @@ button {
 .session-time,
 .mobile-row-meta {
   flex: 0 0 auto;
-  color: #98a099;
+  color: #8b97ac;
   font-size: 11px;
 }
 
@@ -378,7 +378,7 @@ button {
   padding: 8px 18px max(8px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--mobile-line);
   background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 -8px 24px rgba(31, 45, 37, 0.05);
+  box-shadow: 0 -8px 24px rgba(36, 51, 86, 0.05);
 }
 
 .bottom-tab {
@@ -394,7 +394,7 @@ button {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #8a938d;
+  color: #7d8aa1;
   font-size: 11px;
   font-weight: 650;
 }
@@ -436,7 +436,7 @@ button {
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
-  background: #eef1ed;
+  background: #eef2f8;
 }
 
 .chat-mobile-header {
@@ -493,7 +493,12 @@ button {
   padding: 18px 14px 10px;
   overflow-x: hidden;
   overflow-y: auto;
-  background: #eef1ed;
+  background: #eef2f8;
+}
+
+.message-stream > .empty-mobile {
+  min-height: 100%;
+  box-sizing: border-box;
 }
 
 .message-stream .message-history-control {
@@ -529,13 +534,14 @@ button {
   font-size: 14px;
   line-height: 1.55;
   word-break: break-word;
-  box-shadow: 0 3px 10px rgba(29, 43, 35, 0.05);
+  box-shadow: 0 3px 10px rgba(36, 51, 86, 0.06);
 }
 
 .message-item.mine .message-bubble {
-  border-color: #bfe3d5;
+  border-color: #c9d5ff;
   border-radius: 8px 3px 8px 8px;
-  background: #cfeadd;
+  background: #dbe3ff;
+  color: var(--mobile-ink);
 }
 
 .message-bubble.emoji-bubble,
@@ -563,7 +569,7 @@ button {
 
 .message-meta {
   margin-top: 4px;
-  color: #89928c;
+  color: #8a96ab;
   font-size: 9px;
 }
 
@@ -576,11 +582,16 @@ button {
   display: flex;
   min-height: 66px;
   flex: 0 0 auto;
+  flex-direction: row;
   align-items: flex-end;
   gap: 8px;
   padding: 9px 10px max(9px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--mobile-line);
   background: var(--mobile-surface);
+}
+
+.composer > .icon-button {
+  flex: 0 0 40px;
 }
 
 .composer.is-readonly > :not(.composer-restriction) {
@@ -615,7 +626,7 @@ button {
   border: 1px solid var(--mobile-line);
   border-radius: 8px;
   outline: 0;
-  background: #f3f5f2;
+  background: #f1f4f9;
   color: var(--mobile-ink);
   font-size: 14px;
   line-height: 1.45;
@@ -623,7 +634,7 @@ button {
 }
 
 .composer-input:focus {
-  border-color: #93cbb7;
+  border-color: #a8b8f4;
   background: #ffffff;
 }
 
@@ -643,7 +654,7 @@ button {
   border: 1px solid var(--mobile-line);
   border-radius: 8px;
   background: var(--mobile-surface);
-  box-shadow: 0 16px 38px rgba(31, 45, 37, 0.16);
+  box-shadow: 0 16px 38px rgba(36, 51, 86, 0.16);
 }
 
 .emoji-panel-head {
@@ -668,7 +679,7 @@ button {
   padding: 4px;
   border: 0;
   border-radius: 6px;
-  background: #f3f5f2;
+  background: #f1f4f9;
 }
 
 .emoji-option img {
@@ -690,7 +701,7 @@ button {
   margin: 0 16px 12px;
   padding: 3px;
   border-radius: 8px;
-  background: #e8ebe7;
+  background: #e8edf6;
 }
 
 .segmented-tab {
@@ -709,7 +720,7 @@ button {
 .segmented-tab.active {
   background: var(--mobile-surface);
   color: var(--mobile-ink);
-  box-shadow: 0 2px 8px rgba(32, 46, 38, 0.08);
+  box-shadow: 0 2px 8px rgba(43, 58, 98, 0.08);
 }
 
 .section-band {
@@ -750,7 +761,7 @@ button {
   border: 1px solid var(--mobile-line);
   border-radius: 8px;
   outline: 0;
-  background: #f8f9f7;
+  background: #f6f8fb;
   color: var(--mobile-ink);
   font-size: 13px;
 }
@@ -762,7 +773,7 @@ textarea.mobile-field {
 }
 
 .mobile-field:focus {
-  border-color: #93cbb7;
+  border-color: #a8b8f4;
   background: #ffffff;
 }
 
@@ -820,7 +831,7 @@ textarea.mobile-field {
   height: 34px;
   flex-basis: 34px;
   border: 0;
-  background: #eef2ee;
+  background: #eef2f8;
 }
 
 .community-create-fields {
@@ -865,7 +876,7 @@ textarea.mobile-field {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #929a94;
+  color: #8c98ab;
   font-size: 10px;
 }
 
@@ -949,7 +960,7 @@ textarea.mobile-field {
   align-items: center;
   gap: 16px;
   padding: max(30px, env(safe-area-inset-top)) 20px 22px;
-  background: #21362c;
+  background: #2d3856;
   color: #ffffff;
 }
 
@@ -968,7 +979,7 @@ textarea.mobile-field {
 
 .profile-hero-copy p {
   margin: 5px 0 0;
-  color: #bed0c6;
+  color: #bdc8df;
   font-size: 11px;
 }
 
@@ -1005,7 +1016,7 @@ textarea.mobile-field {
 
 .profile-section-label {
   margin: 18px 16px 8px;
-  color: #8d9690;
+  color: #8793aa;
   font-size: 10px;
   font-weight: 800;
 }
@@ -1066,7 +1077,7 @@ textarea.mobile-field {
 }
 
 .profile-action .action-chevron {
-  color: #a4aba6;
+  color: #929eb3;
 }
 
 .profile-action.destructive {
@@ -1095,7 +1106,7 @@ textarea.mobile-field {
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  background: #21362c;
+  background: #2d3856;
   color: #ffffff;
   font-size: 18px;
   font-weight: 800;
@@ -1149,7 +1160,7 @@ textarea.mobile-field {
   border: 1px solid var(--mobile-line);
   border-radius: 8px;
   background: var(--mobile-surface);
-  box-shadow: 0 12px 28px rgba(31, 45, 37, 0.08);
+  box-shadow: 0 12px 28px rgba(36, 51, 86, 0.08);
 }
 
 .auth-card h2 {
@@ -1165,7 +1176,7 @@ textarea.mobile-field {
 .auth-tabs {
   margin-bottom: 18px;
   border-radius: 8px;
-  background: #eef1ed;
+  background: #eef2f8;
 }
 
 .auth-tab {
@@ -1179,7 +1190,7 @@ textarea.mobile-field {
 .field input,
 .field textarea {
   border-radius: 8px;
-  background: #fafbfa;
+  background: #fafbfc;
 }
 
 .primary-button,
@@ -1195,14 +1206,15 @@ textarea.mobile-field {
 .toast {
   position: absolute;
   top: max(14px, env(safe-area-inset-top));
-  right: 16px;
-  left: 16px;
+  right: auto;
+  left: 50%;
   z-index: 200;
-  width: auto;
-  max-width: none;
+  width: max-content;
+  max-width: calc(100% - 32px);
   border-radius: 8px;
-  background: #21362c;
-  box-shadow: 0 12px 30px rgba(31, 45, 37, 0.22);
+  background: #2d3856;
+  box-shadow: 0 12px 30px rgba(36, 51, 86, 0.22);
+  transform: translateX(-50%);
   text-align: center;
 }
 
@@ -1214,7 +1226,7 @@ textarea.mobile-field {
   position: absolute;
   align-items: flex-end;
   padding: 0;
-  background: rgba(20, 28, 23, 0.48);
+  background: rgba(20, 30, 54, 0.48);
 }
 
 .modal-card {
@@ -1263,4 +1275,111 @@ textarea.mobile-field {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* ── 会话置顶/免打扰标记 ── */
+.session-badges {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: #9ca3af;
+}
+
+.status-badge i {
+  width: 14px;
+  height: 14px;
+}
+
+.pin-badge {
+  color: #f59e0b;
+}
+
+.mute-badge {
+  color: #6b7280;
+}
+
+/* ── 会话更多操作按钮 ── */
+.session-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin-left: 2px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.session-more:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.session-more i {
+  width: 16px;
+  height: 16px;
+}
+
+/* ── 会话操作菜单 ── */
+.conversation-menu {
+  position: absolute;
+  right: 44px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 130px;
+  padding: 4px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+.conversation-menu .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #374151;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.conversation-menu .menu-item:hover {
+  background: #f3f4f6;
+}
+
+.conversation-menu .menu-item i {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
+.session-row {
+  position: relative;
 }

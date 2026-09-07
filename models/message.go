@@ -316,9 +316,14 @@ func dispatch(userId int64, data []byte) {
 	senderExists := false
 	conversationMemberList := make([]ConversationMember, 0, len(memberList))
 
+	if conversation.Status == utils.ConversationStatusDissolved {
+		tx.Rollback()
+		return
+	}
+
 	for _, member := range memberList {
 		if member.UserId == userId {
-			if conversation.Status == utils.ConversationStatusDissolved &&
+			if conversation.Status == utils.ConversationStatusMuted &&
 				conversation.Type == 1 &&
 				member.Role != 2 && member.Role != 3 {
 				senderExists = false

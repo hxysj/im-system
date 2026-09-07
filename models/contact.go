@@ -1,6 +1,8 @@
 package models
 
 import (
+	"errors"
+
 	"github.com/hxysj/im-system/utils"
 	"gorm.io/gorm"
 )
@@ -46,6 +48,16 @@ func SearchFriend(userId int64) []SearchFriendResult {
 }
 
 func AddFriend(userId uint, targetId uint) int {
+	err := utils.DB.Transaction(func(tx *gorm.DB) error {
+		return AddFriendTx(*tx, userId, targetId)
+	})
+	if err != nil {
+		return -1
+	}
+	return 0
+}
+
+func AddFriendTx(tx gorm.DB, userId uint, targetId uint) error {
 	user := FindUserById(int64(userId))
 
 	if targetId != 0 && user.UserId != 0 {
@@ -54,25 +66,15 @@ func AddFriend(userId uint, targetId uint) int {
 		utils.DB.Where("owen_id = ? and target_id = ? and type = 1", userId, targetId).Find(&contact)
 
 		if contact.ContactId != 0 {
-			return -1
+			return errors.New("invalid friend relation")
 		}
-
-		// 开启事务
-		tx := utils.DB.Begin()
-		// 事务开启后，不论出现什么异常最终都会Rollback
-		defer func() {
-			if r := recover(); r != nil {
-				tx.Rollback()
-			}
-		}()
 
 		contact.OwenId = userId
 		contact.TargetId = targetId
 		contact.Type = 1
 		contact.ContactId = utils.NextId()
 		if err := tx.Create(&contact).Error; err != nil {
-			tx.Rollback() //回滚数据库
-			return -1
+			return err
 		}
 
 		owner_contact := Contact{}
@@ -82,11 +84,11 @@ func AddFriend(userId uint, targetId uint) int {
 		owner_contact.ContactId = utils.NextId()
 		if err := tx.Create(&owner_contact).Error; err != nil {
 			tx.Rollback()
-			return -1
+			return err
 		}
 		// 两个操作都成功了之后才提交
 		tx.Commit()
-		return 0
+		return nil
 	}
-	return -1
+	return errors.New("invalid friend relation")
 }

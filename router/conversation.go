@@ -13,5 +13,6 @@ func RegisterConversationRouter(r *gin.RouterGroup) {
 		conversation.GET("/getConversationList", service.LoadConversationList)
 		conversation.GET("/getConversationDetail", service.GetConversationDetail)
 		conversation.POST("/deleteConversation", service.DeleteConversation)
+		conversation.POST("/changeConversationStatus", service.ChangeConversationStatus)
 	}
 }
