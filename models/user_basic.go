@@ -1,6 +1,8 @@
 package models
 
 import (
+	"errors"
+	"os"
 	"time"
 
 	"github.com/hxysj/im-system/utils"
@@ -82,9 +84,11 @@ func DeleteUser(userId int64) error {
 
 		// 将对应的会话 status设置成 2 表示无法发送消息
 		var conversationIds []int64
-		if err := tx.Model(&ConversationMember{}).
-			Select("conversation_id").Where("user_id = ?", userId).
-			Pluck("conversation_id", &conversationIds).
+		if err := tx.Table("conversation_member AS cm").
+			Joins("JOIN conversation AS c ON c.conversation_id = cm.conversation_id").
+			Select("cm.conversation_id").
+			Where("cm.user_id = ? AND c.type = 2", userId).
+			Pluck("cm.conversation_id", &conversationIds).
 			Error; err != nil {
 			return err
 		}
@@ -108,11 +112,24 @@ func DeleteUser(userId int64) error {
 			if result.Error != nil {
 				return result.Error
 			}
+			// 将加群申请和群邀请申请都设置成已失效
+			if err := tx.Model(&RelationRequest{}).
+				Where("type IN ? AND target_id IN ? AND status = ?",
+					[]int{2, 3}, ownedCommunityIDs, 1,
+				).Update("status", 4).Error; err != nil {
+				return err
+			}
+			// 解散对应的群聊
+			if err := tx.Where("community_id IN ? AND owner_id = ?", ownedCommunityIDs, userId).
+				Delete(&Community{}).Error; err != nil {
+				return err
+			}
 		}
 
 		if len(conversationIds) > 0 {
 			result := tx.Model(&Conversation{}).
-				Where("type = ? AND status = ? AND conversation_id IN ?", utils.ConversationStatusNormal, 1, conversationIds).
+				Where("type = ? AND status = ? AND conversation_id IN ?",
+					2, utils.ConversationStatusNormal, conversationIds).
 				Update("status", utils.ConversationStatusDissolved)
 
 			if result.Error != nil {
@@ -125,7 +142,8 @@ func DeleteUser(userId int64) error {
 			Delete(&Contact{}).Error; err != nil {
 			return err
 		}
-		// 为通过的申请记录设置成失效
+
+		// 未通过的申请记录设置成失效
 		if err := tx.Model(&RelationRequest{}).Where("status = 1 AND (requester_id = ? OR target_id = ? OR invite_from = ?)", userId, userId, userId).
 			Update("status", 4).Error; err != nil {
 			return err
@@ -175,4 +193,45 @@ func UpdateUserPassword(user_id int64, oldPassword string, newPassword string) (
 	}
 
 	return 0, "修改成功"
+}
+
+func UpdateUserAvatar(user_id int64, file_path string) (error, string) {
+	_, err := os.Stat(file_path)
+
+	if os.IsNotExist(err) {
+		return err, "图片上传失败！"
+	}
+
+	result := utils.DB.
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Model(&UserBasic{}).Where("user_id = ? ", user_id).
+		Update("avatar = ?", file_path)
+	if result.Error != nil {
+		return result.Error, "更新用户头像失败"
+	}
+	if result.RowsAffected != 1 {
+		return errors.New("更新失败，未搜素到对应用户！"), "更新用户头像失败"
+	}
+
+	return nil, "修改成功！"
+}
+
+type UserInfoResult struct {
+	UserId       int64  `json:"user_id"`
+	Name         string `json:"name"`
+	Phone        string `json:"phone"`
+	Email        string `json:"email"`
+	LoginTime    uint64 `json:"login_time"`
+	LoginOutTime uint64 `json:"login_out_time"`
+	Avatar       string `json:"avatar"`
+}
+
+func GetUserInfo(user_id int64) (error, UserInfoResult) {
+	var result UserInfoResult
+	if err := utils.DB.Model(&UserBasic{}).
+		Where("user_id = ?", user_id).
+		Select("user_id,name,phone,email,login_time,login_out_time,avatar").
+		Take(&result).Error; err != nil {
+		return err, UserInfoResult{}
+	}
 }

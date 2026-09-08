@@ -83,11 +83,8 @@ func AddFriendTx(tx gorm.DB, userId uint, targetId uint) error {
 		owner_contact.Type = 1
 		owner_contact.ContactId = utils.NextId()
 		if err := tx.Create(&owner_contact).Error; err != nil {
-			tx.Rollback()
 			return err
 		}
-		// 两个操作都成功了之后才提交
-		tx.Commit()
 		return nil
 	}
 	return errors.New("invalid friend relation")

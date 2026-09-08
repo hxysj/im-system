@@ -6,6 +6,7 @@
       >
       <h1 class="mobile-page-title">会话</h1>
     </div>
+    <button v-if="!socketConnected" class="compact-button" type="button" @click="connectSocket()">重新连接</button>
     <button
       class="icon-button"
       type="button"
@@ -30,11 +31,14 @@
 
   <div class="mobile-scroll">
     <div v-if="filteredConversations.length" class="session-list">
-      <button
+      <div
         v-for="(conversation, index) in filteredConversations"
         :key="conversation.id"
         class="session-row"
-        type="button"
+        role="button"
+        tabindex="0"
+        @keydown.enter.self="openConversation(conversation)"
+        @keydown.space.self.prevent="openConversation(conversation)"
         @click="openConversation(conversation)"
       >
         <span class="mobile-avatar" :class="{ warm: index % 3 === 1 }">
@@ -62,10 +66,21 @@
           >
         </span>
         <span class="session-badges">
-          <span v-if="conversation.isPinned" class="status-badge pin-badge" title="已置顶"><i data-lucide="pin"></i></span>
-          <span v-if="conversation.isMuted" class="status-badge mute-badge" title="消息免打扰"><i data-lucide="bell-off"></i></span>
+          <span
+            v-if="conversation.isPinned"
+            class="status-badge pin-badge"
+            title="已置顶"
+            ><i data-lucide="pin"></i
+          ></span>
+          <span
+            v-if="conversation.isMuted"
+            class="status-badge mute-badge"
+            title="消息免打扰"
+            ><i data-lucide="bell-off"></i
+          ></span>
           <span v-if="conversation.unreadCount" class="status-chip">
-            {{ conversation.unreadCount > 99 ? "99+" : conversation.unreadCount }}
+            {{ conversation.unreadCount > 99 ? "99+" : conversation.unreadCount
+            }}
           </span>
         </span>
         <button
@@ -85,21 +100,34 @@
           <button
             type="button"
             class="menu-item"
-            @click="changeConversationStatus(conversation, 1, conversation.isPinned ? 2 : 1)"
+            :disabled="conversationAction"
+            @click="changeConversationStatus(conversation, 1, conversation.isPinned ? 1 : 2)"
           >
-            <i :data-lucide="conversation.isPinned ? &apos;pin-off&apos; : &apos;pin&apos;"></i>
+            <i :data-lucide="conversation.isPinned ? 'pin-off' : 'pin'"></i>
             <span>{{ conversation.isPinned ? "取消置顶" : "置顶会话" }}</span>
           </button>
           <button
             type="button"
             class="menu-item"
-            @click="changeConversationStatus(conversation, 2, conversation.isMuted ? 2 : 1)"
+            :disabled="conversationAction"
+            @click="changeConversationStatus(conversation, 2, conversation.isMuted ? 1 : 2)"
           >
-            <i :data-lucide="conversation.isMuted ? &apos;bell&apos; : &apos;bell-off&apos;"></i>
-            <span>{{ conversation.isMuted ? "取消免打扰" : "消息免打扰" }}</span>
+            <i :data-lucide="conversation.isMuted ? 'bell' : 'bell-off'"></i>
+            <span
+              >{{ conversation.isMuted ? "取消免打扰" : "消息免打扰" }}</span
+            >
+          </button>
+          <button
+            v-if="conversation.type === 1 && conversation.role === 3 && [1, 2].includes(conversation.status)"
+            type="button"
+            class="menu-item"
+            :disabled="conversationAction"
+            @click="changeConversationStatus(conversation, 3, conversation.status === 2 ? 1 : 2)"
+          >
+            {{ conversation.status === 2 ? '解除群禁言' : '开启群禁言' }}
           </button>
         </div>
-      </button>
+      </div>
     </div>
     <div v-else class="empty-mobile">
       <div>
@@ -154,6 +182,7 @@
     >
       <i data-lucide="user-round"></i>
     </button>
+    <button v-if="!socketConnected" class="compact-button" type="button" @click="connectSocket()">重新连接</button>
     <button
       class="icon-button danger"
       type="button"
@@ -174,7 +203,10 @@
     <div v-if="messageLoading" class="empty-mobile">
       <div><strong>正在加载历史消息</strong></div>
     </div>
-    <div v-else-if="messageHistoryError && !messages.length" class="empty-mobile">
+    <div
+      v-else-if="messageHistoryError && !messages.length"
+      class="empty-mobile"
+    >
       <div>
         <strong>{{ messageHistoryError }}</strong>
         <button
@@ -195,7 +227,8 @@
     </div>
     <template v-else>
       <div class="message-history-control" role="status" aria-live="polite">
-        <span v-if="messageLoadingMore">正在加载更早消息…</span>
+        <span v-if="messageSyncing">正在补齐断线期间的消息…</span>
+        <span v-else-if="messageLoadingMore">正在加载更早消息…</span>
         <button
           v-else-if="messageHistoryError || messageHasMore"
           class="compact-button"

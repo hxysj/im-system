@@ -1618,12 +1618,15 @@
                 conversations: 0,
                 communities: 0
               },
-              communityInviteTarget: "",
+              communityInviteTargets: {},
               communityLoading: false,
               communitySaving: false,
               communityJoining: false,
               communityJoinKeyword: "",
               communityForm: { name: "", desc: "" },
+              communityEdit: null,
+              communityAction: false,
+              conversationAction: false,
               conversations: [],
               selectedUser: null,
               selectedConversation: null,
@@ -1639,6 +1642,12 @@
               conversationDeleting: false,
               activeConversationMenu: null,
               socket: null,
+              socketReconnectTimer: null,
+              socketReconnectAttempt: 0,
+              socketShortDisconnects: 0,
+              socketNeedsSync: false,
+              socketSyncTimer: null,
+              messageSyncing: false,
               socketConnected: false,
               readTimers: new Map(),
               toast: {
@@ -1708,14 +1717,14 @@
               if (conversation.type !== 1) return false
               if (conversation.status === 1) return true
               return (
-                conversation.status === 3 &&
+                conversation.status === 2 &&
                 (conversation.role === 2 || conversation.role === 3)
               )
             },
             conversationSendRestriction() {
               const conversation = this.selectedConversation
               if (!conversation || this.canSendCurrentConversation) return ""
-              if (conversation.type === 1 && conversation.status === 3)
+              if (conversation.type === 1 && conversation.status === 2)
                 return "群聊已禁言，仅管理员和群主可发言"
               return "当前会话仅可查看历史消息"
             }
@@ -1747,10 +1756,95 @@
             this.renderIcons()
           },
           beforeUnmount() {
+            this.stopSocket()
             this.stopRelationPolling()
             this.messageHistoryRequest += 1
           },
           methods: {
+            editCommunity(community) {
+              if (!this.communityIsOwner(community) || this.communityAction)
+                return
+              this.communityEdit = {
+                community_id: this.communityId(community),
+                name: this.communityName(community),
+                img: this.communityImg(community),
+                desc: this.communityDesc(community)
+              }
+            },
+            async saveCommunityInfo() {
+              if (!this.communityEdit || this.communityAction) return
+              if (!this.communityEdit.name.trim()) {
+                this.showToast("群名称不能为空", "error")
+                return
+              }
+              const token = this.session.token
+              this.communityAction = true
+              try {
+                const response = await api.post(
+                  "/community/changeCommunityInfo",
+                  this.formBody({
+                    info: JSON.stringify({
+                      ...this.communityEdit,
+                      community_id: Number(this.communityEdit.community_id),
+                      name: this.communityEdit.name.trim()
+                    })
+                  })
+                )
+                if (token !== this.session.token) return
+                if (this.responseCode(response.data) !== 0)
+                  throw new Error(response.data?.msg || "群资料修改失败")
+                this.communityEdit = null
+                this.showToast("群资料已更新")
+                await Promise.all([
+                  this.refreshCommunities(),
+                  this.refreshConversations()
+                ])
+              } catch (error) {
+                if (token === this.session.token)
+                  this.showToast(
+                    error.response?.data?.msg || error.message,
+                    "error"
+                  )
+              } finally {
+                if (token === this.session.token) this.communityAction = false
+              }
+            },
+            async dissolveCommunity(community) {
+              if (!this.communityIsOwner(community) || this.communityAction)
+                return
+              if (
+                !window.confirm(
+                  `确定解散“${this.communityName(community)}”？解散后无法恢复，历史消息保留。`
+                )
+              )
+                return
+              const token = this.session.token
+              this.communityAction = true
+              try {
+                const response = await api.post(
+                  "/community/deleteCommunity",
+                  this.formBody({ community_id: this.communityId(community) })
+                )
+                if (token !== this.session.token) return
+                if (this.responseCode(response.data) !== 0)
+                  throw new Error(response.data?.msg || "解散失败")
+                this.communityEdit = null
+                this.showToast("群已解散，历史消息仍可查看")
+                await Promise.all([
+                  this.refreshCommunities(),
+                  this.refreshConversations(),
+                  this.refreshRequests()
+                ])
+              } catch (error) {
+                if (token === this.session.token)
+                  this.showToast(
+                    error.response?.data?.msg || error.message,
+                    "error"
+                  )
+              } finally {
+                if (token === this.session.token) this.communityAction = false
+              }
+            },
             renderIcons() {
               // 动态片段切换后重新渲染图标，避免条件视图出现空白按钮。
               this.$nextTick(() => window.lucide?.createIcons())
@@ -1916,7 +2010,8 @@
               const last = conversation?.lastMessageInfo || {}
               if (last.media === 2) return "[表情]"
               if (last.media === 3) return "[图片]"
-              return last.content || "开始一段新对话"
+              if (!last.content) return ""
+              return last.content
             },
             conversationTime(conversation) {
               return this.formatMessageTime(conversation?.lastMessageAt)
@@ -2072,32 +2167,6 @@
                   error.response?.data?.message ||
                   error.message ||
                   "接口请求失败，请检查服务是否启动"
-              } finally {
-                this.loading = false
-              }
-            },
-            async refreshUsers() {
-              this.loading = true
-              try {
-                const response = await api.get("/user/getUserList")
-                const payload = response.data || {}
-                if (this.responseCode(payload) !== 0)
-                  throw new Error(
-                    payload.msg || payload.message || "用户列表加载失败"
-                  )
-                const list =
-                  this.responseData(payload) ??
-                  payload.message ??
-                  payload.Rows ??
-                  []
-                if (!Array.isArray(list))
-                  throw new Error("用户列表响应格式错误")
-                this.users = list
-              } catch (error) {
-                this.showToast(
-                  "个人资料加载失败，请确认后端服务已启动",
-                  "error"
-                )
               } finally {
                 this.loading = false
               }
@@ -2305,7 +2374,9 @@
                   version === this.listRequestVersions.communities
                 )
                   this.showToast(
-                    error.response?.data?.msg || error.message || "群聊加载失败",
+                    error.response?.data?.msg ||
+                      error.message ||
+                      "群聊加载失败",
                     "error"
                   )
               } finally {
@@ -2419,6 +2490,8 @@
                 this.relationPolling ||
                 this.relationLoading ||
                 this.relationAction ||
+                this.communityAction ||
+                this.conversationAction ||
                 this.loading ||
                 this.communityLoading
               )
@@ -2454,10 +2527,8 @@
                 const payload = response.data || {}
                 if ((payload.code ?? payload.Code) !== 0)
                   throw new Error("申请加载失败")
-                const list =
-                  payload.data ?? payload.Data ?? payload.Rows ?? []
-                if (!Array.isArray(list))
-                  throw new Error("申请响应格式错误")
+                const list = payload.data ?? payload.Data ?? payload.Rows ?? []
+                if (!Array.isArray(list)) throw new Error("申请响应格式错误")
                 if (this.relationInitialized) {
                   const previousStatuses = new Map(
                     this.relationRequests.map((item) => [
@@ -2540,14 +2611,15 @@
               }
             },
             async inviteCommunity(community) {
-              const targetId = String(this.communityInviteTarget)
               const communityId = this.communityId(community)
+              const targetId = String(
+                this.communityInviteTargets[communityId] || ""
+              )
               if (!targetId || !communityId) return
               try {
                 const response = await api.post(
                   "/community/inviteCommunity",
                   this.formBody({
-                    user_id: String(this.session.user.id),
                     com_id: String(communityId),
                     target_id: String(targetId)
                   })
@@ -2555,7 +2627,7 @@
                 const payload = response.data || {}
                 if ((payload.code ?? payload.Code) !== 0)
                   throw new Error(payload.msg || payload.message || "邀请失败")
-                this.communityInviteTarget = ""
+                this.communityInviteTargets[communityId] = ""
                 this.showToast("邀请已发送")
               } catch (error) {
                 this.showToast(
@@ -2565,6 +2637,7 @@
               }
             },
             async openCommunities() {
+              this.communityInviteTargets = {}
               this.contactSection = "groups"
               await this.openContacts()
             },
@@ -2776,6 +2849,7 @@
               this.currentView = "chat"
             },
             resetMessageHistory() {
+              this.messageSyncing = false
               this.messageHistoryRequest += 1
               this.messageLoading = false
               this.messageLoadingMore = false
@@ -2790,31 +2864,38 @@
               if (node && node.scrollTop <= 64 && !this.messageHistoryError)
                 this.loadMessageHistory(true)
             },
-            async loadMessageHistory(loadOlder = false) {
+            async loadMessageHistory(loadOlder = false, synchronize = false) {
               const conversationId = this.selectedConversation?.id
               if (!conversationId || !this.session.user) return false
               if (
                 loadOlder &&
                 (this.messageLoading ||
                   this.messageLoadingMore ||
+                  this.messageSyncing ||
                   !this.messageHasMore)
               )
                 return false
-              if (!loadOlder) this.resetMessageHistory()
+              if (!loadOlder && !synchronize) this.resetMessageHistory()
               const token = this.session.token
               const requestId = ++this.messageHistoryRequest
               const cursor = this.messageHistoryCursor
               const limit = 30
               let page = loadOlder ? Math.max(1, this.messageHistoryPage) : 1
-              this.messageLoading = !loadOlder
+              this.messageLoading = !loadOlder && !synchronize
               this.messageLoadingMore = loadOlder
+              this.messageSyncing = synchronize
               this.messageHistoryError = ""
               try {
                 let list = []
                 let total = 0
                 let hasMore = false
                 let foundHistory = false
-                for (let attempt = 0; attempt < 10; attempt += 1) {
+                const syncMessages = new Map()
+                for (
+                  let attempt = 0;
+                  synchronize || attempt < 10;
+                  attempt += 1
+                ) {
                   const response = await api.get("/msg/getMessageList", {
                     params: { conversation_id: conversationId, limit, page }
                   })
@@ -2834,6 +2915,46 @@
                     throw new Error("历史消息响应格式错误")
                   total = Number(payload.total ?? payload.Total ?? 0)
                   hasMore = list.length === limit && page * limit < total
+                  if (synchronize) {
+                    list.forEach((item) => {
+                      syncMessages.set(
+                        String(item.message_id ?? item.MessageId),
+                        item
+                      )
+                    })
+                    const reachedCursor =
+                      cursor &&
+                      list.some((item) => {
+                        const messageId = String(
+                          item.message_id ?? item.MessageId
+                        )
+                        return (
+                          messageId.length < cursor.length ||
+                          (messageId.length === cursor.length &&
+                            messageId <= cursor)
+                        )
+                      })
+                    if (!cursor || reachedCursor || !hasMore) {
+                      list = Array.from(syncMessages.values()).sort(
+                        (left, right) => {
+                          const leftId = String(
+                            left.message_id ?? left.MessageId
+                          )
+                          const rightId = String(
+                            right.message_id ?? right.MessageId
+                          )
+                          return (
+                            rightId.length - leftId.length ||
+                            rightId.localeCompare(leftId)
+                          )
+                        }
+                      )
+                      foundHistory = true
+                      break
+                    }
+                    page += 1
+                    continue
+                  }
                   if (
                     loadOlder &&
                     total < this.messageHistoryTotal &&
@@ -2851,7 +2972,8 @@
                       )
                       return (
                         messageId.length < cursor.length ||
-                        (messageId.length === cursor.length && messageId < cursor)
+                        (messageId.length === cursor.length &&
+                          messageId < cursor)
                       )
                     })
                   }
@@ -2890,7 +3012,7 @@
                 const scrollHeight = node?.scrollHeight || 0
                 const scrollTop = node?.scrollTop || 0
                 const anchor =
-                  loadOlder && node
+                  (loadOlder || synchronize) && node
                     ? Array.from(node.querySelectorAll(".message-item")).find(
                         (item) =>
                           item.getBoundingClientRect().bottom >
@@ -2898,6 +3020,9 @@
                       )
                     : null
                 const anchorTop = anchor?.getBoundingClientRect().top || 0
+                const nearBottom =
+                  !node ||
+                  node.scrollHeight - node.scrollTop - node.clientHeight <= 80
                 const historyIds = new Set(
                   historyMessages.map((message) => message.id)
                 )
@@ -2919,12 +3044,17 @@
                   this.selectedConversation?.id !== conversationId
                 )
                   return false
-                if (loadOlder && node && node === this.$refs.messageStream) {
+                if (
+                  (loadOlder || (synchronize && !nearBottom)) &&
+                  node &&
+                  node === this.$refs.messageStream
+                ) {
                   if (anchor && node.contains(anchor)) {
                     node.scrollTop +=
                       anchor.getBoundingClientRect().top - anchorTop
                   } else {
-                    node.scrollTop = scrollTop + node.scrollHeight - scrollHeight
+                    node.scrollTop =
+                      scrollTop + node.scrollHeight - scrollHeight
                   }
                 } else if (!loadOlder) {
                   this.messageLoading = false
@@ -2942,12 +3072,14 @@
                   error.response?.data?.msg ||
                   error.message ||
                   "历史消息加载失败"
-                this.showToast(this.messageHistoryError, "error")
+                if (!synchronize)
+                  this.showToast(this.messageHistoryError, "error")
                 return false
               } finally {
                 if (requestId === this.messageHistoryRequest) {
                   this.messageLoading = false
                   this.messageLoadingMore = false
+                  this.messageSyncing = false
                 }
               }
             },
@@ -2968,9 +3100,7 @@
                     ? { ...conversation, unreadCount: 0 }
                     : conversation
                 )
-                if (
-                  this.selectedConversation?.id === String(conversationId)
-                ) {
+                if (this.selectedConversation?.id === String(conversationId)) {
                   this.selectedConversation =
                     this.conversations.find(
                       (conversation) =>
@@ -2979,9 +3109,7 @@
                 }
               } catch (error) {
                 this.showToast(
-                  error.response?.data?.msg ||
-                    error.message ||
-                    "设置已读失败",
+                  error.response?.data?.msg || error.message || "设置已读失败",
                   "error"
                 )
               }
@@ -3031,9 +3159,7 @@
                 this.showToast("会话已删除")
               } catch (error) {
                 this.showToast(
-                  error.response?.data?.msg ||
-                    error.message ||
-                    "删除会话失败",
+                  error.response?.data?.msg || error.message || "删除会话失败",
                   "error"
                 )
               } finally {
@@ -3041,21 +3167,26 @@
               }
             },
             async changeConversationStatus(conversation, type, status) {
-              if (!conversation?.id) return
+              if (!conversation?.id || this.conversationAction) return
+              const token = this.session.token
+              this.conversationAction = true
+              this.listRequestVersions.conversations += 1
               try {
                 const response = await api.post(
-                  '/conversation/changeConversationStatus',
+                  "/conversation/changeConversationStatus",
                   this.formBody({
                     conversation_id: conversation.id,
                     type,
                     status
                   })
                 )
+                if (token !== this.session.token) return
                 const payload = response.data || {}
                 if (this.responseCode(payload) !== 0)
-                  throw new Error(payload.msg || '修改失败')
+                  throw new Error(payload.msg || "修改失败")
                 const list = this.responseData(payload) ?? payload.Rows ?? []
                 if (Array.isArray(list)) {
+                  this.listRequestVersions.conversations += 1
                   this.conversations = list
                     .map((item) => this.normalizeConversation(item))
                     .filter((item) => item.id)
@@ -3071,14 +3202,16 @@
                   this.$nextTick(() => this.renderIcons())
                 }
                 this.activeConversationMenu = null
-                this.showToast(payload.msg || '修改成功')
+                this.showToast(payload.msg || "修改成功")
               } catch (error) {
-                this.showToast(
-                  error.response?.data?.msg ||
-                    error.message ||
-                    '修改失败',
-                  'error'
-                )
+                if (token === this.session.token)
+                  this.showToast(
+                    error.response?.data?.msg || error.message || "修改失败",
+                    "error"
+                  )
+              } finally {
+                if (token === this.session.token)
+                  this.conversationAction = false
               }
             },
             toggleConversationMenu(conversation) {
@@ -3089,34 +3222,139 @@
               this.activeConversationMenu = conversation.id
               this.$nextTick(() => this.renderIcons())
             },
-            connectSocket() {
+            stopSocket() {
+              clearTimeout(this.socketReconnectTimer)
+              clearTimeout(this.socketSyncTimer)
+              this.socketReconnectTimer = null
+              this.socketSyncTimer = null
+              this.socketNeedsSync = false
+              this.socketReconnectAttempt = 0
+              this.socketShortDisconnects = 0
+              const socket = this.socket
+              this.socket = null
+              this.socketConnected = false
+              if (socket) socket.close()
+            },
+            scheduleSocketReconnect() {
+              if (!this.session.token || this.socketReconnectTimer) return
+              const token = this.session.token
+              const delay = Math.min(
+                30000,
+                1000 * 2 ** this.socketReconnectAttempt
+              )
+              this.socketReconnectAttempt = Math.min(
+                this.socketReconnectAttempt + 1,
+                5
+              )
+              this.socketReconnectTimer = setTimeout(() => {
+                this.socketReconnectTimer = null
+                if (token === this.session.token) this.connectSocket(true)
+              }, delay)
+            },
+            async syncAfterReconnect(socket) {
+              clearTimeout(this.socketSyncTimer)
+              this.socketSyncTimer = null
+              if (this.socket !== socket || !this.socketConnected) return
+              if (
+                this.messageLoading ||
+                this.messageLoadingMore ||
+                this.messageSyncing
+              ) {
+                this.socketSyncTimer = setTimeout(
+                  () => this.syncAfterReconnect(socket),
+                  500
+                )
+                return
+              }
+              const conversationId = this.selectedConversation?.id
+              await this.refreshConversations(true)
+              if (this.socket !== socket || !this.socketConnected) return
+              if (conversationId !== this.selectedConversation?.id) {
+                this.socketSyncTimer = setTimeout(
+                  () => this.syncAfterReconnect(socket),
+                  500
+                )
+                return
+              }
+              const loaded =
+                !conversationId || (await this.loadMessageHistory(false, true))
+              if (this.socket !== socket || !this.socketConnected) return
+              if (loaded && conversationId === this.selectedConversation?.id) {
+                this.socketNeedsSync = false
+                if (conversationId)
+                  this.scheduleConversationRead(conversationId)
+              } else {
+                this.socketSyncTimer = setTimeout(
+                  () => this.syncAfterReconnect(socket),
+                  5000
+                )
+              }
+            },
+            connectSocket(automatic = false) {
               if (!this.session.user || !this.session.token) return
+              if (!automatic) this.socketShortDisconnects = 0
               if (
                 this.socket &&
                 (this.socket.readyState === WebSocket.OPEN ||
                   this.socket.readyState === WebSocket.CONNECTING)
               )
                 return
-              if (this.socket) this.socket.close()
+              clearTimeout(this.socketReconnectTimer)
+              this.socketReconnectTimer = null
+              if (this.socket) {
+                const previous = this.socket
+                this.socket = null
+                previous.close()
+              }
               const base = API_ROOT || window.location.origin
               const wsBase = base.replace(/^http/, "ws")
               // 原生 WebSocket 不能复用 Axios 请求头，Token 通过查询参数交给鉴权中间件。
               const token = encodeURIComponent(this.session.token)
-              const socket = new WebSocket(`${wsBase}/msg/chat?token=${token}`)
+              let socket
+              try {
+                socket = new WebSocket(`${wsBase}/msg/chat?token=${token}`)
+              } catch (error) {
+                this.scheduleSocketReconnect()
+                return
+              }
               this.socket = socket
+              let openedAt = 0
               socket.onopen = () => {
+                if (this.socket !== socket) return
                 this.socketConnected = true
+                openedAt = Date.now()
+                this.socketReconnectAttempt = 0
+                if (this.socketNeedsSync) this.syncAfterReconnect(socket)
               }
               socket.onclose = () => {
                 if (this.socket === socket) {
                   this.socket = null
                   this.socketConnected = false
+                  this.socketNeedsSync = true
+                  clearTimeout(this.socketSyncTimer)
+                  this.socketSyncTimer = null
+                  this.socketShortDisconnects =
+                    openedAt && Date.now() - openedAt < 5000
+                      ? this.socketShortDisconnects + 1
+                      : 0
+                  if (this.socketShortDisconnects >= 5) {
+                    this.showToast(
+                      "连接反复被关闭，已暂停重连；请检查其他设备登录后手动重连",
+                      "error"
+                    )
+                    return
+                  }
+                  this.scheduleSocketReconnect()
                 }
               }
               socket.onerror = () => {
-                if (this.socket === socket) this.socketConnected = false
+                if (this.socket === socket) {
+                  this.socketConnected = false
+                  socket.close()
+                }
               }
               socket.onmessage = (event) => {
+                if (this.socket !== socket) return
                 if (event.data === "欢迎进入im-system系统的聊天室！") return
                 let content = event.data
                 let media = 1
@@ -3158,7 +3396,11 @@
                   conversationId !== selectedId
                 )
                 if (conversationId !== selectedId) {
-                  this.showToast("收到一条新消息")
+                  const conversation = this.conversations.find(
+                    (item) => item.id === conversationId
+                  )
+                  if (conversation && !conversation.isMuted)
+                    this.showToast("收到一条新消息")
                   return
                 }
                 if (
@@ -3169,7 +3411,9 @@
                 const stream = this.$refs.messageStream
                 const nearBottom =
                   !stream ||
-                  stream.scrollHeight - stream.scrollTop - stream.clientHeight <=
+                  stream.scrollHeight -
+                    stream.scrollTop -
+                    stream.clientHeight <=
                     80
                 this.messages.push({
                   id: messageId || `${Date.now()}-${Math.random()}`,
@@ -3182,7 +3426,11 @@
                   time: this.formatMessageTime(createdAt)
                 })
                 this.scheduleConversationRead(conversationId)
-                if (nearBottom && !this.messageLoadingMore)
+                if (
+                  nearBottom &&
+                  !this.messageLoadingMore &&
+                  !this.messageSyncing
+                )
                   this.scrollMessages()
               }
             },
@@ -3214,6 +3462,7 @@
                 url
               }
               if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+                this.connectSocket()
                 this.showToast("实时通道尚未连接，请稍后重试", "error")
                 return
               }
@@ -3305,6 +3554,10 @@
               })
             },
             clearLocalSession() {
+              this.stopSocket()
+              this.communityEdit = null
+              this.communityAction = false
+              this.conversationAction = false
               this.stopRelationPolling()
               this.resetMessageHistory()
               this.relationInitialized = false
@@ -3359,12 +3612,8 @@
               }
             },
             async openEditProfile() {
-              await this.refreshUsers()
               // 仅从当前登录用户的记录填充资料表单，不接受好友对象作为编辑目标。
-              const person =
-                this.users.find(
-                  (item) => this.userId(item) === String(this.session.user.id)
-                ) || this.session.user
+              const person = this.session.user
               this.memberModal = { visible: true, editing: true, error: "" }
               this.memberForm = {
                 id: this.session.user.id,
@@ -3418,7 +3667,12 @@
                 if ((body.code ?? body.Code) !== 0)
                   throw new Error(body.msg || body.message || "保存失败")
                 this.closeMemberModal()
-                this.session.user.name = this.memberForm.name
+                Object.assign(this.session.user, {
+                  name: this.memberForm.name,
+                  phone: this.memberForm.phone,
+                  email: this.memberForm.email,
+                  identity: this.memberForm.identity
+                })
                 sessionStorage.setItem(
                   "im-session",
                   JSON.stringify(this.session)

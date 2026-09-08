@@ -12,5 +12,7 @@ func RegisterCommunityRoutes(r *gin.RouterGroup) {
 		community.POST("/getCommunityList", service.LoadCommunity)
 		community.POST("/joinCommunity", service.CreateCommunityRelation)
 		community.POST("/inviteCommunity", service.InviteCommunity)
+		community.POST("/deleteCommunity", service.DeleteCommunity)
+		community.POST("/changeCommunityInfo", service.ChangeCommunityInfo)
 	}
 }

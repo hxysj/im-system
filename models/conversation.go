@@ -187,21 +187,29 @@ func CreateConversationTx(tx *gorm.DB, userId int64, target int64, cType int) (i
 	} else if cType == 1 {
 		// 判断群聊是否存在,判断用户是否在群聊中
 		var community Community
-		if err := tx.Model(&Community{}).Where("community_id = ?", target).First(&community).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Model(&Community{}).Where("community_id = ?", target).First(&community).Error; err != nil {
 			return 0, "查询会话失败", err
 		}
 
 		var contact Contact
-		if err := tx.Model(&Contact{}).Where("owen_id = ? AND target_id = ? AND type = 2", userId, target).First(&contact).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Model(&Contact{}).Where("owen_id = ? AND target_id = ? AND type = 2", userId, target).First(&contact).Error; err != nil {
 			return 0, "查询会话失败", err
 		}
 
 		var conversation Conversation
 
-		result := tx.Model(&Conversation{}).Where("type = 1 AND community_id = ?", community.CommunityId).First(&conversation)
+		result := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Model(&Conversation{}).
+			Where("type = 1 AND community_id = ?",
+				community.CommunityId).
+			First(&conversation)
 
 		if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return 0, "查询会话失败", result.Error
+		}
+
+		if result.Error == nil && conversation.Status != utils.ConversationStatusNormal && conversation.Status != utils.ConversationStatusMuted {
+			return 0, "当前群聊不可加入", errors.New("当前群聊不可加入")
 		}
 
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -646,25 +654,35 @@ func DeleteConversation(userId int64, conversationId int64) error {
 // 修改会话状态
 func ChangeConversationStatus(userId int64, conversationId int64, changeType int, status int) error {
 
-	var statusResult bool
-	if status == 2 {
-		statusResult = true
-	} else {
-		statusResult = false
+	var statusResult any
+	if changeType == 1 || changeType == 2 {
+		if status == 2 {
+			statusResult = true
+		} else {
+			statusResult = false
+		}
+	} else if changeType == 3 {
+		if status != 2 {
+			statusResult = utils.ConversationStatusNormal
+		} else {
+			statusResult = utils.ConversationStatusMuted
+		}
 	}
 
 	var conversationMember ConversationMember
 
 	tx := utils.DB.Begin()
 
-	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Table("conversation_member AS cm").Select("cm.*").
-		Joins("JOIN conversation AS c ON c.conversation_id = cm.conversation_id").
-		Where("c.conversation_id = ? AND cm.user_id = ? AND  cm.left_at IS NULL AND cm.visible_at IS NOT NULL", conversationId, userId).
-		Take(&conversationMember).Error
+	if changeType == 1 || changeType == 2 {
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Table("conversation_member AS cm").Select("cm.*").
+			Joins("JOIN conversation AS c ON c.conversation_id = cm.conversation_id").
+			Where("c.conversation_id = ? AND cm.user_id = ? AND  cm.left_at IS NULL AND cm.visible_at IS NOT NULL", conversationId, userId).
+			Take(&conversationMember).Error
 
-	if err != nil {
-		tx.Rollback()
-		return err
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 
 	switch changeType {
@@ -676,6 +694,43 @@ func ChangeConversationStatus(userId int64, conversationId int64, changeType int
 		}
 	case 2:
 		updateErr := tx.Model(&conversationMember).Update("is_muted", statusResult).Error
+		if updateErr != nil {
+			tx.Rollback()
+			return updateErr
+		}
+	case 3:
+		var conversation Conversation
+
+		if err := tx.Where("conversation_id = ? AND type = ?", conversationId, 1).
+			Take(&conversation).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		if conversation.CommunityId == nil {
+			tx.Rollback()
+			return gorm.ErrRecordNotFound
+		}
+		var community Community
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("community_id = ? AND owner_id = ?", conversation.CommunityId, userId).
+			Take(&community).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("conversation_id = ? AND community_id = ? AND type = ? AND status IN ?",
+				conversationId, community.CommunityId, 1, []int{
+					utils.ConversationStatusNormal,
+					utils.ConversationStatusMuted,
+				},
+			).Take(&conversation).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		updateErr := tx.Model(&conversation).Update("status", statusResult).Error
 		if updateErr != nil {
 			tx.Rollback()
 			return updateErr

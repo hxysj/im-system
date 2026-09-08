@@ -142,7 +142,7 @@ func ChangeConversationStatus(ctx *gin.Context) {
 	}
 
 	//  1 不置顶，打扰   2 指定，免打扰
-	if status != 1 && status != 2 {
+	if (change_type == 1 || change_type == 2) && status != 1 && status != 2 {
 		status = 1
 	}
 

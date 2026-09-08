@@ -2,7 +2,6 @@ package models
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/hxysj/im-system/utils"
 	"gorm.io/gorm"
@@ -118,36 +117,67 @@ func LoadCommunity(owner_id uint) (int, []LoadCommunityResult, string) {
 }
 
 func DeleteCommunity(user_id int64, community_id int64) error {
-	var community Community
-	if err := utils.DB.Model(&Community{}).
-		Where("owner_id = ? AND community_id = ? ADN delete_at IS NULL").
-		Take(&community).Error; err != nil {
-		return err
-	}
-
 	return utils.DB.Transaction(func(tx *gorm.DB) error {
+		var community Community
+		if err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Model(&Community{}).
+			Where("owner_id = ? AND community_id = ?", user_id, community_id).
+			Take(&community).Error; err != nil {
+			return err
+		}
+
 		var conversation Conversation
 		if err := tx.Model(&Conversation{}).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("community_id = ? AND type = ? AND status != 3", community_id, 1).
+			Where("community_id = ? AND type = ? AND status IN ?", community_id, 1, []int{
+				utils.ConversationStatusNormal,
+				utils.ConversationStatusMuted,
+			}).
 			Take(&conversation).Error; err != nil {
 			return err
 		}
 
-		nowTime := time.Now()
-		updateMemberRes := tx.Model(&ConversationMember{}).
-			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("conversation_id = ?", conversation.ConversationId).Update("left_at", nowTime)
+		updateRelationRes := tx.Model(&RelationRequest{}).
+			Where("type IN ? AND target_id = ? AND status = 1", []int{
+				2, 3,
+			}, community_id).Update("status", 4)
 
-		if updateMemberRes.Error != nil {
-			return updateMemberRes.Error
+		if updateRelationRes.Error != nil {
+			return updateRelationRes.Error
 		}
-		if updateMemberRes.RowsAffected != 1 {
+
+		updateRes := tx.Model(&Conversation{}).
+			Where("conversation_id = ?", conversation.ConversationId).
+			Update("status", utils.ConversationStatusDissolved)
+
+		if updateRes.Error != nil {
+			return updateRes.Error
+		}
+		if updateRes.RowsAffected != 1 {
 			return gorm.ErrRecordNotFound
 		}
-
-		
+		return tx.Delete(&community).Error
 	})
+}
 
-	return nil
+type CommunityInfoItem struct {
+	CommunityId int64  `json:"community_id"`
+	Name        string `json:"name"`
+	Img         string `json:"img"`
+	Desc        string `json:"desc"`
+}
+
+func ChangeCommunityInfo(user_id int64, data CommunityInfoItem) error {
+	return utils.DB.Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&Community{}).
+			Where("community_id = ? AND owner_id = ?", data.CommunityId, user_id).
+			Select("Name", "Img", "Desc").
+			Updates(data)
+		if res.RowsAffected != 1 {
+			return gorm.ErrRecordNotFound
+		}
+		return res.Error
+
+	})
 }

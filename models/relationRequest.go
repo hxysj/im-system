@@ -193,6 +193,10 @@ func GetRelationRequestList(user_id int64) ([]RelationRequestItem, error) {
 
 // 创建记录
 func CreateRelationRequest(user_id int64, target_id int64, desc string, req_type int, inviteFrom int64) (int, string) {
+	if user_id == target_id || user_id == inviteFrom {
+		return -1, "参数有误"
+	}
+
 	if req_type != 1 && req_type != 2 && req_type != 3 {
 		return -1, "不支持的申请类型"
 	}
@@ -318,7 +322,7 @@ func ToggleRelationRequestStatus(r_id int64, user_id int64, status int) (int, st
 				return gorm.ErrRecordNotFound
 			}
 
-			_, _, err = CreateConversationTx(tx, request.RequesterId, request.TargetId, 1)
+			_, _, err = CreateConversationTx(tx, request.RequesterId, request.TargetId, 2)
 			return err
 		})
 
@@ -329,18 +333,27 @@ func ToggleRelationRequestStatus(r_id int64, user_id int64, status int) (int, st
 		return 0, "修改成功"
 	} else {
 
+		tx := utils.DB.Begin()
+
 		var community Community
-		query := utils.DB.Model(&Community{}).Where("owner_id = ? AND community_id = ?", user_id, relationRequestInfo.TargetId)
+		query := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Model(&Community{}).
+			Where("owner_id = ? AND community_id = ?", user_id, relationRequestInfo.TargetId)
 		if relationRequestInfo.Type == 3 {
-			query = utils.DB.Model(&Community{}).Where("community_id = ?", relationRequestInfo.TargetId)
+			query = tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+				Model(&Community{}).
+				Where("community_id = ?", relationRequestInfo.TargetId)
 		}
-		query.First(&community)
+		if err := query.First(&community).Error; err != nil {
+			tx.Rollback()
+			fmt.Println(err)
+			return -1, "群不存在或查询失败"
+		}
 
 		if community.CommunityId == 0 || (relationRequestInfo.Type == 3 && user_id != relationRequestInfo.RequesterId) {
+			tx.Rollback()
 			return -1, "参数有误"
 		}
-
-		tx := utils.DB.Begin()
 
 		defer func() {
 			if r := recover(); r != nil {
@@ -361,9 +374,19 @@ func ToggleRelationRequestStatus(r_id int64, user_id int64, status int) (int, st
 			return -1, "修改失败"
 		}
 
-		if err := tx.Model(&RelationRequest{}).Where("request_id = ? AND status = ?", r_id, 1).Update("status", 2).Error; err != nil {
+		result := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Model(&RelationRequest{}).
+			Where("request_id = ? AND status = ?", r_id, 1).
+			Update("status", 2)
+		if result.Error != nil {
 			tx.Rollback()
-			fmt.Println(err)
+			fmt.Println(result.Error)
+			return -1, "修改失败"
+		}
+
+		if result.RowsAffected != 1 {
+			tx.Rollback()
+			fmt.Println("更新申请实际不影响一行")
 			return -1, "修改失败"
 		}
 
@@ -374,12 +397,10 @@ func ToggleRelationRequestStatus(r_id int64, user_id int64, status int) (int, st
 			return -1, "修改失败"
 		}
 
-		tx.Commit()
-
-		if err != nil {
+		if err := tx.Commit().Error; err != nil {
 			fmt.Println(err)
+			return -1, "修改失败"
 		}
-
 	}
 
 	return 0, "修改成功"

@@ -72,6 +72,24 @@
           </span>
         </div>
         <div class="invite-line">
+          <template v-if="communityIsOwner(community)">
+            <button
+              class="compact-button"
+              type="button"
+              :disabled="communityAction"
+              @click="editCommunity(community)"
+            >
+              编辑资料
+            </button>
+            <button
+              class="compact-button danger"
+              type="button"
+              :disabled="communityAction"
+              @click="dissolveCommunity(community)"
+            >
+              解散群聊
+            </button>
+          </template>
           <button
             class="compact-button primary"
             type="button"
@@ -79,7 +97,10 @@
           >
             进入群聊
           </button>
-          <select v-model="communityInviteTarget" class="mobile-field">
+          <select
+            v-model="communityInviteTargets[communityId(community)]"
+            class="mobile-field"
+          >
             <option value="">邀请好友</option>
             <option
               v-for="person in friends"
@@ -92,12 +113,56 @@
           <button
             class="compact-button"
             type="button"
-            :disabled="!communityInviteTarget"
+            :disabled="!communityInviteTargets[communityId(community)]"
             @click="inviteCommunity(community)"
           >
             邀请
           </button>
         </div>
+        <form
+          v-if="communityEdit && communityEdit.community_id === communityId(community)"
+          class="community-create-fields"
+          @submit.prevent="saveCommunityInfo"
+        >
+          <input
+            v-model.trim="communityEdit.name"
+            class="mobile-field"
+            aria-label="群名称"
+            maxlength="40"
+            required
+            :disabled="communityAction"
+          />
+          <input
+            v-model.trim="communityEdit.img"
+            class="mobile-field"
+            aria-label="群头像地址"
+            placeholder="群头像地址（可留空）"
+            :disabled="communityAction"
+          />
+          <textarea
+            v-model="communityEdit.desc"
+            class="mobile-field"
+            aria-label="群简介"
+            maxlength="160"
+            placeholder="群简介（可清空）"
+            :disabled="communityAction"
+          ></textarea>
+          <button
+            class="compact-button primary"
+            type="submit"
+            :disabled="communityAction"
+          >
+            {{ communityAction ? '保存中…' : '保存资料' }}
+          </button>
+          <button
+            class="compact-button"
+            type="button"
+            :disabled="communityAction"
+            @click="communityEdit = null"
+          >
+            取消
+          </button>
+        </form>
       </div>
     </article>
   </div>

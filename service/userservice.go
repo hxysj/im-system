@@ -317,3 +317,22 @@ func LoginOut(ctx *gin.Context) {
 	}
 	utils.RespOk(ctx.Writer, nil, "退出登录成功！")
 }
+
+// 更新用户头像
+func UpdateUserAvatar(ctx *gin.Context) {
+	user_id := ctx.GetInt64("current_user_id")
+
+	file_path := ctx.PostForm("avatar")
+
+	if strings.Trim(file_path, " ") == "" || user_id <= 0 {
+		utils.RespFail(ctx.Writer, "参数有误！")
+		return
+	}
+
+	err, msg := models.UpdateUserAvatar(user_id, file_path)
+	if err != nil {
+		utils.RespFail(ctx.Writer, msg)
+	} else {
+		utils.RespOk(ctx.Writer, nil, msg)
+	}
+}

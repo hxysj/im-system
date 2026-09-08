@@ -34,6 +34,19 @@ func Upload(ctx *gin.Context) {
 	}
 	// 重新生成唯一的文件名称
 	fileName := fmt.Sprintf("%d%04d%s", time.Now().Unix(), rand.Int31(), suffix)
+
+	// 判断目录是否存在
+	_, osErr := os.Stat("./asset/upload")
+
+	if os.IsNotExist(osErr) {
+		err := os.MkdirAll("./asset/upload", 0755)
+		if err != nil {
+			fmt.Println(osErr)
+			utils.RespFail(w, "上传文件失败！")
+			return
+		}
+	}
+
 	// 创建空文件
 	dstFile, err := os.Create("./asset/upload/" + fileName)
 
