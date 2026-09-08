@@ -23,5 +23,6 @@ func RegisterUserRoutes(r *gin.RouterGroup) {
 		user.POST("/searchUser", service.SearchUser)
 		user.POST("/changePassword", service.UpdatePassword)
 		user.POST("/loginOut", service.LoginOut)
+		user.GET("/getUserInfo", service.GetUserInfo)
 	}
 }

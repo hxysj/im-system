@@ -336,3 +336,15 @@ func UpdateUserAvatar(ctx *gin.Context) {
 		utils.RespOk(ctx.Writer, nil, msg)
 	}
 }
+
+// 获取用户信息
+func GetUserInfo(ctx *gin.Context) {
+	user_id := ctx.GetInt64("current_user_id")
+
+	result, err := models.GetUserInfo(user_id)
+	if err != nil {
+		utils.RespFail(ctx.Writer, "获取用户信息失败！")
+	} else {
+		utils.RespOk(ctx.Writer, result, "")
+	}
+}

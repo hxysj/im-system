@@ -182,6 +182,16 @@
     >
       <i data-lucide="user-round"></i>
     </button>
+    <button
+      v-if="selectedConversation?.type === 1"
+      class="icon-button"
+      type="button"
+      title="群管理"
+      aria-label="群管理"
+      @click="openCommunityPanel"
+    >
+      <i data-lucide="settings-2"></i>
+    </button>
     <button v-if="!socketConnected" class="compact-button" type="button" @click="connectSocket()">重新连接</button>
     <button
       class="icon-button danger"
@@ -195,7 +205,34 @@
     </button>
   </header>
 
+  <section v-if="selectedConversation?.type === 1 && communityPanelOpen" class="community-management-screen">
+    <header class="community-management-header">
+      <button class="icon-button" type="button" aria-label="返回群聊" @click="closeCommunityPanel">
+        <i data-lucide="chevron-left"></i>
+      </button>
+      <div><span class="mobile-eyebrow">群聊设置</span><h2>{{ selectedTargetName() }}</h2></div>
+    </header>
+    <div class="community-management-body">
+      <section class="community-management-card">
+        <div class="community-management-title"><strong>群资料</strong><button v-if="selectedConversation.role === 3" class="compact-button" type="button" @click="editCommunity(selectedUser)">编辑</button></div>
+        <input v-if="communityEdit" v-model.trim="communityEdit.name" class="mobile-field" placeholder="群名称" />
+        <div v-if="communityEdit" class="community-image-edit"><span class="mobile-avatar"><img v-if="communityEdit.img" :src="assetUrl(communityEdit.img)" alt="群头像" /><template v-else>群</template></span><label class="compact-button" for="community-panel-image">上传群头像</label><input id="community-panel-image" class="image-input" type="file" accept="image/*" @change="uploadCommunityImage" /></div>
+        <textarea v-if="communityEdit" v-model.trim="communityEdit.desc" class="mobile-field" placeholder="群简介"></textarea>
+        <div v-if="communityEdit" class="community-management-actions"><button class="compact-button" type="button" @click="communityEdit = null">取消</button><button class="compact-button primary" type="button" :disabled="communityAction" @click="saveCommunityInfo">保存</button></div>
+        <p v-else class="community-management-description">{{ communityDesc(selectedUser) || '暂无群简介' }}</p>
+      </section>
+      <section class="community-management-card">
+        <div class="community-management-title"><strong>群成员 {{ communityMembers.length }}</strong><button class="member-add-button" type="button" title="邀请好友" @click="communityInviteOpen = !communityInviteOpen">+</button></div>
+        <div v-if="communityInviteOpen" class="community-member-invite"><select v-model="communityInviteTarget" class="mobile-field"><option value="">选择好友</option><option v-for="person in friends" :key="userId(person)" :value="userId(person)">{{ personName(person) }}</option></select><button class="compact-button primary" type="button" :disabled="!communityInviteTarget" @click="inviteFromPanel">邀请</button></div>
+        <div v-if="communityMembersLoading" class="community-management-empty">正在加载成员…</div>
+        <div v-else class="community-member-list"><div v-for="member in communityMembers" :key="member.user_id" class="community-member-row"><span class="mobile-avatar"><img v-if="member.avatar" :src="assetUrl(member.avatar)" :alt="member.name" /><template v-else>{{ initials(member.name) }}</template></span><span class="community-member-copy"><strong>{{ member.name || '未命名用户' }}</strong><small>{{ member.role === 3 ? '群主' : member.role === 2 ? '管理员' : '成员' }}</small></span></div><button class="community-member-row community-member-add" type="button" @click="communityInviteOpen = true"><span class="member-add-button">+</span><span>邀请好友加入群聊</span></button></div>
+      </section>
+      <button v-if="selectedConversation.role === 3" class="community-danger-action" type="button" @click="dissolveCommunity(selectedUser)">解散群聊</button>
+    </div>
+  </section>
+
   <div
+    v-else
     ref="messageStream"
     class="message-stream"
     @scroll.passive="handleMessageScroll"

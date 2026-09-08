@@ -1,4 +1,4 @@
-package models
+﻿package models
 
 import (
 	"errors"
@@ -13,7 +13,7 @@ import (
 type UserBasic struct {
 	gorm.Model
 	UserId        int64  `gorm:"not null;uniqueIndex" json:"user_id"`
-	Name          string `gorm:"not null;uniqueIndex" json:"name"`
+	Name          string `gorm:"type:varchar(255);not null;uniqueIndex" json:"name"`
 	Password      string
 	Phone         string `valid:"matches(^1[3-9]{1}\\d{9}$)"`
 	Email         string `valid:"email"`
@@ -221,17 +221,19 @@ type UserInfoResult struct {
 	Name         string `json:"name"`
 	Phone        string `json:"phone"`
 	Email        string `json:"email"`
+	Identity     string `json:"identity"`
 	LoginTime    uint64 `json:"login_time"`
 	LoginOutTime uint64 `json:"login_out_time"`
 	Avatar       string `json:"avatar"`
 }
 
-func GetUserInfo(user_id int64) (error, UserInfoResult) {
+func GetUserInfo(user_id int64) (UserInfoResult, error) {
 	var result UserInfoResult
 	if err := utils.DB.Model(&UserBasic{}).
 		Where("user_id = ?", user_id).
-		Select("user_id,name,phone,email,login_time,login_out_time,avatar").
+		Select("user_id,name,phone,email,identity,login_time,login_out_time,avatar").
 		Take(&result).Error; err != nil {
-		return err, UserInfoResult{}
+		return UserInfoResult{}, err
 	}
+	return result, nil
 }

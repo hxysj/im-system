@@ -1624,12 +1624,18 @@
               communityJoining: false,
               communityJoinKeyword: "",
               communityForm: { name: "", desc: "" },
+              communityCreateModal: { visible: false },
               communityEdit: null,
               communityAction: false,
               conversationAction: false,
               conversations: [],
               selectedUser: null,
               selectedConversation: null,
+              communityPanelOpen: false,
+              communityMembers: [],
+              communityMembersLoading: false,
+              communityInviteOpen: false,
+              communityInviteTarget: "",
               messages: [],
               messageLoading: false,
               messageLoadingMore: false,
@@ -1762,7 +1768,8 @@
           },
           methods: {
             editCommunity(community) {
-              if (!this.communityIsOwner(community) || this.communityAction)
+              const isOwner = this.communityIsOwner(community) || (this.selectedConversation?.type === 1 && this.selectedConversation.role === 3)
+              if (!isOwner || this.communityAction)
                 return
               this.communityEdit = {
                 community_id: this.communityId(community),
@@ -2610,10 +2617,10 @@
                 this.relationAction = null
               }
             },
-            async inviteCommunity(community) {
+            async inviteCommunity(community, targetOverride = "") {
               const communityId = this.communityId(community)
               const targetId = String(
-                this.communityInviteTargets[communityId] || ""
+                targetOverride || this.communityInviteTargets[communityId] || ""
               )
               if (!targetId || !communityId) return
               try {
@@ -2692,6 +2699,7 @@
                     payload.msg || payload.message || "创建群聊失败"
                   )
                 this.communityForm = { name: "", desc: "" }
+                this.closeCommunityCreate()
                 this.showToast("群聊创建成功")
                 await this.refreshCommunities()
               } catch (error) {
@@ -2702,6 +2710,57 @@
               } finally {
                 this.communitySaving = false
               }
+            },
+            openCommunityCreate() {
+              this.communityForm = { name: "", desc: "" }
+              this.communityCreateModal.visible = true
+            },
+            async openCommunityPanel() {
+              if (this.selectedConversation?.type !== 1) return
+              this.communityPanelOpen = true
+              this.communityInviteOpen = false
+              this.communityInviteTarget = ""
+              await this.loadCommunityMembers()
+            },
+            closeCommunityPanel() {
+              this.communityPanelOpen = false
+              this.communityEdit = null
+            },
+            async loadCommunityMembers() {
+              // 当前接口未提供群成员列表，面板先复用已加载的好友数据展示可邀请成员。
+              this.communityMembersLoading = false
+              this.communityMembers = this.selectedConversation?.role === 3 ? [{ user_id: this.session.user.id, name: this.session.user.name, avatar: this.personAvatar(this.session.user), role: 3 }] : []
+            },
+            async inviteFromPanel() {
+              const targetId = this.communityInviteTarget
+              if (!targetId) return
+              await this.inviteCommunity(this.selectedUser, targetId)
+              this.communityInviteTarget = ""
+              this.communityInviteOpen = false
+            },
+            async uploadCommunityImage(event) {
+              const file = event.target.files?.[0]
+              if (!file || !this.communityEdit || this.communityAction) return
+              this.communityAction = true
+              try {
+                const formData = new FormData()
+                formData.append("file", file)
+                const response = await api.post("/attach/upload", formData)
+                const payload = response.data || {}
+                if (this.responseCode(payload) !== 0)
+                  throw new Error(payload.msg || "群头像上传失败")
+                this.communityEdit.img = this.responseData(payload)
+                this.showToast("群头像已上传，请保存群资料")
+              } catch (error) {
+                this.showToast(error.response?.data?.msg || error.message || "群头像上传失败", "error")
+              } finally {
+                this.communityAction = false
+                event.target.value = ""
+              }
+            },
+            closeCommunityCreate() {
+              if (this.communitySaving) return
+              this.communityCreateModal.visible = false
             },
             async joinCommunity() {
               const keyword = this.communityJoinKeyword.trim()

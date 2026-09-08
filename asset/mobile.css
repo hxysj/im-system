@@ -24,6 +24,12 @@ body {
   letter-spacing: 0;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 button,
 input,
 textarea,
@@ -40,7 +46,7 @@ button {
   position: relative;
   width: min(100%, 480px);
   height: 100dvh;
-  min-height: 560px;
+  min-height: 0;
   margin: 0 auto;
   padding: 0;
   overflow: hidden;
@@ -62,6 +68,7 @@ button {
   min-height: 0;
   flex: 1;
   overflow: hidden;
+  height: 0;
 }
 
 .mobile-main > .mobile-screen,
@@ -371,7 +378,7 @@ button {
   position: relative;
   z-index: 20;
   display: flex;
-  min-height: 72px;
+  min-height: calc(68px + env(safe-area-inset-bottom));
   flex: 0 0 auto;
   align-items: flex-start;
   justify-content: space-around;
@@ -448,6 +455,7 @@ button {
   padding: max(10px, env(safe-area-inset-top)) 12px 10px;
   border-bottom: 1px solid var(--mobile-line);
   background: rgba(255, 255, 255, 0.96);
+  overflow: hidden;
 }
 
 .chat-person {
@@ -580,14 +588,17 @@ button {
 .composer {
   position: relative;
   display: flex;
-  min-height: 66px;
+  min-height: 74px;
   flex: 0 0 auto;
   flex-direction: row;
   align-items: flex-end;
-  gap: 8px;
-  padding: 9px 10px max(9px, env(safe-area-inset-bottom));
-  border-top: 1px solid var(--mobile-line);
+  gap: 10px;
+  padding: 10px 12px max(10px, env(safe-area-inset-bottom));
+  border: 1px solid var(--mobile-line);
+  border-radius: 14px;
   background: var(--mobile-surface);
+  box-shadow: 0 8px 24px rgba(36, 51, 86, 0.08);
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
 }
 
 .composer > .icon-button {
@@ -619,23 +630,25 @@ button {
 
 .composer-input {
   min-width: 0;
-  min-height: 42px;
+  min-height: 44px;
   max-height: 108px;
   flex: 1;
-  padding: 10px 12px;
-  border: 1px solid var(--mobile-line);
-  border-radius: 8px;
+  padding: 11px 13px;
+  border: 1px solid transparent;
+  border-radius: 11px;
   outline: 0;
-  background: #f1f4f9;
+  background: #f4f6fa;
   color: var(--mobile-ink);
   font-size: 14px;
   line-height: 1.45;
   resize: none;
+  overflow-y: auto;
 }
 
 .composer-input:focus {
   border-color: #a8b8f4;
   background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(168, 184, 244, 0.18);
 }
 
 .image-input {
@@ -840,6 +853,33 @@ textarea.mobile-field {
   gap: 8px;
 }
 
+.community-create-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.community-create-modal .mobile-field {
+  width: 100%;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+}
+
+.community-create-modal .compact-button {
+  width: 100%;
+  margin: 0;
+}
+
+.community-create-modal .modal-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.community-create-modal .modal-actions .compact-button {
+  width: auto;
+  flex: 1;
+}
+
 .community-mobile-item {
   display: flex;
   gap: 12px;
@@ -894,6 +934,7 @@ textarea.mobile-field {
 
 .invite-line {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-top: 10px;
 }
@@ -904,6 +945,166 @@ textarea.mobile-field {
 
 .invite-line .compact-button {
   height: 36px;
+}
+
+.invite-line .mobile-field {
+  min-width: 120px;
+  flex: 1 1 120px;
+}
+
+.community-management-screen {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  background: var(--mobile-bg);
+}
+
+.community-management-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--mobile-line);
+  background: var(--mobile-surface);
+}
+
+.community-management-header h2 {
+  margin: 2px 0 0;
+  color: var(--mobile-ink);
+  font-size: 17px;
+}
+
+.community-management-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 24px;
+  overflow-y: auto;
+}
+
+.community-management-card {
+  padding: 14px;
+  border: 1px solid var(--mobile-line);
+  border-radius: 14px;
+  background: var(--mobile-surface);
+}
+
+.community-management-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.community-management-title .compact-button {
+  height: 30px;
+  margin: 0;
+  padding: 0 10px;
+}
+
+.community-management-description {
+  margin: 0;
+  color: var(--mobile-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.community-management-actions,
+.community-member-invite {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.community-image-edit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.community-image-edit .compact-button {
+  margin: 0;
+}
+
+.community-management-actions .compact-button,
+.community-member-invite .compact-button {
+  margin: 0;
+}
+
+.community-member-invite .mobile-field {
+  min-width: 0;
+  flex: 1;
+}
+
+.member-add-button {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--mobile-accent);
+  border-radius: 50%;
+  background: var(--mobile-accent-soft);
+  color: var(--mobile-accent);
+  font-size: 20px;
+}
+
+.community-member-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.community-member-row {
+  display: flex;
+  width: 100%;
+  min-height: 50px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border: 0;
+  border-bottom: 1px solid var(--mobile-line);
+  background: transparent;
+  color: var(--mobile-ink);
+  text-align: left;
+}
+
+.community-member-row:last-child {
+  border-bottom: 0;
+}
+
+.community-member-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.community-member-copy small {
+  color: var(--mobile-muted);
+  font-size: 10px;
+}
+
+.community-member-add {
+  align-items: center;
+  color: var(--mobile-accent);
+  font-size: 12px;
+}
+
+.community-danger-action {
+  min-height: 44px;
+  border: 1px solid rgba(180, 74, 58, 0.3);
+  border-radius: 11px;
+  background: transparent;
+  color: var(--mobile-coral);
+  font-size: 13px;
+}
+
+.community-management-empty {
+  padding: 18px 0;
+  color: var(--mobile-muted);
+  font-size: 12px;
+  text-align: center;
 }
 
 .request-mobile-item {
@@ -1223,26 +1424,57 @@ textarea.mobile-field {
 }
 
 .modal-backdrop {
-  position: absolute;
-  align-items: flex-end;
-  padding: 0;
+  position: fixed;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
   background: rgba(20, 30, 54, 0.48);
+  z-index: 100;
 }
 
 .modal-card {
-  width: 100%;
-  max-width: none;
-  max-height: 88%;
-  padding: 20px 18px max(20px, env(safe-area-inset-bottom));
+  width: min(100%, 440px);
+  max-width: 440px;
+  max-height: calc(100vh - 32px);
+  padding: 22px 18px;
   overflow-y: auto;
-  border-radius: 8px 8px 0 0;
+  border-radius: 16px;
+  box-shadow: 0 20px 55px rgba(20, 30, 54, 0.24);
+  overscroll-behavior: contain;
 }
 
 .modal-actions {
-  position: sticky;
-  bottom: 0;
   padding-top: 10px;
-  background: var(--mobile-surface);
+}
+
+.avatar-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar-edit-preview {
+  display: inline-flex;
+  width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex: 0 0 48px;
+  border-radius: 50%;
+  background: var(--mobile-accent-soft);
+  color: var(--mobile-accent);
+  font-size: 11px;
+}
+
+.avatar-edit-preview img,
+img.avatar-edit-preview {
+  object-fit: cover;
+}
+
+.avatar-upload-button {
+  width: auto;
+  margin: 0;
 }
 
 .profile-detail-list {
@@ -1373,6 +1605,16 @@ textarea.mobile-field {
   background: #f3f4f6;
 }
 
+.conversation-menu .menu-item.danger {
+  color: #dc2626;
+}
+.conversation-menu .menu-item.danger:hover {
+  background: #fef2f2;
+}
+.conversation-menu .menu-item.danger i {
+  color: #dc2626;
+}
+
 .conversation-menu .menu-item i {
   width: 15px;
   height: 15px;
@@ -1382,4 +1624,31 @@ textarea.mobile-field {
 
 .session-row {
   position: relative;
+}
+
+@media (max-width: 380px) {
+  .chat-mobile-header {
+    gap: 6px;
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .chat-mobile-header > .compact-button {
+    max-width: 78px;
+    padding: 0 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .composer {
+    gap: 5px;
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+
+  .composer > .icon-button {
+    width: 34px;
+    flex-basis: 34px;
+  }
 }

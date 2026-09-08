@@ -3,7 +3,16 @@
     <div class="section-band-title">
       <strong>创建群聊</strong><span>建立新的讨论空间</span>
     </div>
-    <form class="community-create-fields" @submit.prevent="createCommunity">
+    <button class="compact-button primary" type="button" @click="openCommunityCreate">
+      创建群聊
+    </button>
+    <!-- 创建群聊使用居中弹框，避免表单挤占群聊列表空间。 -->
+    <div v-if="communityCreateModal.visible" class="modal-backdrop" @click.self="closeCommunityCreate">
+      <form class="modal-card community-create-modal" @submit.prevent="createCommunity">
+      <div class="modal-heading">
+        <div><h3>创建群聊</h3><p class="auth-subtitle" style="margin-bottom: 0">填写群聊名称和简介</p></div>
+        <button class="close-button" type="button" aria-label="关闭" @click="closeCommunityCreate">×</button>
+      </div>
       <input
         v-model.trim="communityForm.name"
         class="mobile-field"
@@ -24,7 +33,8 @@
       >
         {{ communitySaving ? '创建中' : '创建群聊' }}
       </button>
-    </form>
+      </form>
+    </div>
   </section>
 
   <section class="section-band">
@@ -72,7 +82,7 @@
           </span>
         </div>
         <div class="invite-line">
-          <template v-if="communityIsOwner(community)">
+          <template v-if="false">
             <button
               class="compact-button"
               type="button"
@@ -98,6 +108,7 @@
             进入群聊
           </button>
           <select
+            v-if="false"
             v-model="communityInviteTargets[communityId(community)]"
             class="mobile-field"
           >
@@ -113,6 +124,7 @@
           <button
             class="compact-button"
             type="button"
+            v-if="false"
             :disabled="!communityInviteTargets[communityId(community)]"
             @click="inviteCommunity(community)"
           >
@@ -138,6 +150,15 @@
             aria-label="群头像地址"
             placeholder="群头像地址（可留空）"
             :disabled="communityAction"
+          />
+          <label class="compact-button" for="community-edit-image">上传群头像</label>
+          <input
+            id="community-edit-image"
+            class="image-input"
+            type="file"
+            accept="image/*"
+            :disabled="communityAction"
+            @change="uploadCommunityImage"
           />
           <textarea
             v-model="communityEdit.desc"
